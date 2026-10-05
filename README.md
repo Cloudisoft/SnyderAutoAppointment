@@ -28,3 +28,15 @@ applies every migration.
 TEST_DATABASE_ADMIN_URL=postgres://postgres:postgres@localhost:5432/postgres pnpm test
 SKIP_DB_TESTS=1 pnpm test     # pure suites only
 ```
+
+## Auto Appointments
+
+See [docs/auto-appointments.md](docs/auto-appointments.md) for the booking flow, design notes and
+the test map. Migration `0009_appointments.sql` adds the data model; new env vars are documented
+in `.env.example` under "Auto Appointments".
+
+## Background jobs
+
+Jobs run in the API process when `JOBS_ENABLED=true` (each guarded by a Postgres advisory lock so
+multiple instances are safe): `dialer`, `call-reconcile`, `appointment-hold-expiry`,
+`appointment-notification-dispatch`, `appointment-reminders`, `appointment-no-show`.
