@@ -10,22 +10,45 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const [error, setError] = useState<unknown>(null);
+  const [error, setError] = useState<unknown>(() => linkError());
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [needsConfirm, setNeedsConfirm] = useState(() => linkError() !== null);
   if (session) return <Navigate to="/" replace />;
+
+  async function resend() {
+    if (!email) {
+      setError('Enter your email above, then press resend.');
+      return;
+    }
+    setBusy(true);
+    const { error: err } = await supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: authRedirectUrl() } });
+    setBusy(false);
+    if (err) setError(err);
+    else {
+      setError(null);
+      setInfo('We sent a new confirmation email. Open the newest one; older links stop working.');
+    }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    setInfo(null);
     const res =
       mode === 'signin'
         ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+        : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: authRedirectUrl() } });
     setBusy(false);
-    if (res.error) setError(res.error);
-    else if (mode === 'signup' && !res.data.session) setInfo('Check your inbox to confirm your email.');
+    if (res.error) {
+      const unconfirmed = /not confirmed/i.test(res.error.message);
+      setNeedsConfirm(unconfirmed);
+      setError(unconfirmed ? 'Please confirm your email first. Check your inbox, or resend the confirmation email.' : res.error);
+    } else if (mode === 'signup' && !res.data.session) {
+      setNeedsConfirm(true);
+      setInfo('Check your inbox and click the confirmation link. It brings you straight back here, signed in.');
+    }
   }
 
   return (
@@ -61,6 +84,11 @@ export function LoginPage() {
           <Field label="Email"><Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" placeholder="you@company.com" /></Field>
           <Field label="Password"><Input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} placeholder="At least 8 characters" /></Field>
           <ErrorText error={error} />
+          {needsConfirm && (
+            <button type="button" className="text-sm font-semibold text-primary hover:underline" disabled={busy} onClick={() => void resend()}>
+              Resend confirmation email
+            </button>
+          )}
           {info && <p className="rounded-lg bg-success/10 p-3 text-sm text-success animate-fade-in">{info}</p>}
           <Button variant="primary" className="h-11 w-full" loading={busy}>{mode === 'signin' ? 'Sign in' : 'Create account'}</Button>
           <button type="button" className="w-full text-sm text-muted transition-colors hover:text-fg" onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null); setInfo(null); }}>
@@ -78,3 +106,20 @@ const FEATURES = [
   'Warm transfers to your team',
   'Appointments booked and confirmed by email',
 ];
+
+/** Where email links (confirmation, magic link) send people back to: this app's own login page. */
+export function authRedirectUrl() {
+  return `${window.location.origin}/login`;
+}
+
+/** Reads an auth error that Supabase put in the URL (e.g. an expired or already-used email link). */
+function linkError(): string | null {
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, '') || window.location.search);
+  const code = params.get('error_code');
+  const desc = params.get('error_description');
+  if (!code && !desc) return null;
+  if (code === 'otp_expired' || /expired|invalid/i.test(desc ?? '')) {
+    return 'That email link has expired or was already used. Sign in if you already confirmed, or resend the confirmation email.';
+  }
+  return desc?.replace(/\+/g, ' ') ?? 'That email link did not work. Please try again.';
+}
