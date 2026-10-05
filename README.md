@@ -40,3 +40,11 @@ in `.env.example` under "Auto Appointments".
 Jobs run in the API process when `JOBS_ENABLED=true` (each guarded by a Postgres advisory lock so
 multiple instances are safe): `dialer`, `call-reconcile`, `appointment-hold-expiry`,
 `appointment-notification-dispatch`, `appointment-reminders`, `appointment-no-show`.
+
+## Deploy (Railway)
+
+`railway.json` deploys the monorepo as one service: the build compiles the backend and the web app,
+the pre-deploy step applies migrations (`node apps/backend/dist/db/migrate.js`), and the backend
+serves the API, webhooks, the public appointment page and the web app (`FRONTEND_DIST_DIR=apps/frontend/dist`).
+Set `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` as service variables so they are present at build time.
+Use Supabase's **Session pooler** connection string for `DATABASE_URL` (IPv4).

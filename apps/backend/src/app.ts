@@ -17,6 +17,7 @@ import { registerCampaignRoutes } from './modules/campaigns/routes';
 import { registerNotificationRoutes } from './modules/org/notifications';
 import { registerOrgRoutes } from './modules/org/routes';
 import { registerErrorHandler } from './plugins/errors';
+import { registerFrontend } from './plugins/frontend';
 
 export async function buildApp(deps: Deps, pipeline: CallPipeline = defaultCallPipeline()) {
   const app = Fastify({
@@ -44,6 +45,7 @@ export async function buildApp(deps: Deps, pipeline: CallPipeline = defaultCallP
   await registerPublicAppointmentRoutes(app, deps);
   await registerAppointmentRoutes(app, deps);
   await registerAppointmentSettingsRoutes(app, deps);
+  await registerFrontend(app, deps.config.FRONTEND_DIST_DIR);
 
   return app;
 }

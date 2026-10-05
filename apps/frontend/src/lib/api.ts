@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 
-export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080').replace(/\/$/, '');
+// Same origin in production builds (the API serves the app); localhost API in dev.
+export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? 'http://localhost:8080' : '')).replace(/\/$/, '');
 
 let activeOrgId: string | null = null;
 export function setActiveOrg(id: string | null) {
