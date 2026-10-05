@@ -70,8 +70,10 @@ export class FakeMailer implements Mailer {
   sent: OutgoingEmail[] = [];
   /** Errors to throw on the next sends (one per send). */
   failures: Error[] = [];
+  /** Errors to throw for a specific recipient (one per send to that address). */
+  failuresFor: Record<string, Error[]> = {};
   async send(email: OutgoingEmail) {
-    const f = this.failures.shift();
+    const f = this.failuresFor[email.to]?.shift() ?? this.failures.shift();
     if (f) throw f;
     this.sent.push(email);
     return { messageId: `<msg-${this.sent.length}@test>` };

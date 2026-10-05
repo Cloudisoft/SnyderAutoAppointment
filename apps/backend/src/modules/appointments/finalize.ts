@@ -7,6 +7,7 @@ import type { CallOutcome } from '../calls/outcome';
 import type { CallRow } from '../calls/types';
 import { loadVersionSnapshot } from '../campaigns/service';
 import { recordAppointmentEvent } from './events';
+import { kickNotifications } from './notifications/dispatcher';
 import { enqueueNotification, prospectChannels } from './notifications/queue';
 import { appointmentSettingsOf } from './settings';
 
@@ -130,5 +131,10 @@ export const appointmentsEndStep: CallEndStep = {
     let confirmed = 0;
     for (const p of pending) if (await confirmAppointment(client, deps, p.id, { type: 'system' })) confirmed++;
     return { appointmentBooked: confirmed > 0 };
+  },
+  // Send the confirmation right away instead of waiting for the dispatcher's next run.
+  async afterCommit(deps, call) {
+    const { rows } = await deps.db.query<{ id: string }>(`select id from appointments where call_id = $1 and status = 'confirmed'`, [call.id]);
+    for (const r of rows) await kickNotifications(deps, r.id);
   },
 };
