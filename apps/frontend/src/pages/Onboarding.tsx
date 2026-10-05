@@ -15,7 +15,7 @@ export function OnboardingPage() {
   });
   return (
     <main className="min-h-screen grid place-items-center p-4">
-      <form onSubmit={(e) => { e.preventDefault(); create.mutate(); }} className="w-full max-w-sm space-y-4 rounded-xl border border-border bg-surface p-6">
+      <form onSubmit={(e) => { e.preventDefault(); create.mutate(); }} className="w-full max-w-sm space-y-4 rounded-xl border border-border bg-surface p-6 shadow-sm animate-scale-in">
         <h1 className="text-xl font-semibold">Create your organization</h1>
         <Field label="Organization name"><Input required value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Time zone"><TimeZoneSelect value={tz} onChange={setTz} /></Field>

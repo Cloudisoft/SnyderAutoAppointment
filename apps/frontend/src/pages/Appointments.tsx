@@ -4,7 +4,7 @@ import { DateTime } from 'luxon';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import { Badge, Button, Card, Drawer, EmptyState, ErrorText, Field, Input, Modal, PageHeader, Select, Table, Tabs, Td, Textarea, cx, type BadgeTone } from '../components/ui';
+import { Badge, Button, Card, Drawer, EmptyState, ErrorText, Field, Input, Modal, PageHeader, Select, SkeletonRows, Table, Tabs, Td, Textarea, cx, type BadgeTone } from '../components/ui';
 import { api, downloadFile } from '../lib/api';
 import { titleCase } from '../lib/format';
 import type { Host } from './settings/AppointmentSettings';
@@ -119,7 +119,7 @@ export function AppointmentsPage() {
         </div>
       )}
       {view === 'list' ? (
-        list.data?.rows.length === 0 ? <EmptyState title="No appointments match" /> : (
+        list.isLoading ? <SkeletonRows /> : list.data?.rows.length === 0 ? <EmptyState title="No appointments match" /> : (
           <Table head={['When (your time)', 'Lead', 'Host', 'Campaign', 'Status', 'Source']}>
             {(list.data?.rows ?? []).map((a) => (
               <tr key={a.id} className="cursor-pointer hover:bg-surface-2" onClick={() => setParams({ id: a.id })}>
@@ -177,7 +177,7 @@ function CalendarGrid({ days, from, rows, onOpen }: { days: number; from: DateTi
                   <button
                     key={a.id}
                     onClick={() => onOpen(a.id)}
-                    className={cx('absolute left-1 right-1 overflow-hidden rounded-md border px-1.5 py-0.5 text-left text-[11px] leading-tight',
+                    className={cx('absolute left-1 right-1 overflow-hidden rounded-md border px-1.5 py-0.5 text-left text-[11px] leading-tight animate-scale-in transition-shadow hover:shadow-md hover:z-10',
                       a.status === 'cancelled' ? 'border-border bg-surface-2 text-muted line-through' : a.status === 'needs_review' ? 'border-purple-400/50 bg-purple-500/15' : 'border-primary/40 bg-primary/15')}
                     style={{ top, height }}
                     title={`${leadName(a)} · ${a.host_name}`}

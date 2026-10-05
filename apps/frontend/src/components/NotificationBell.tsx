@@ -30,10 +30,10 @@ export function NotificationBell() {
     <div className="relative">
       <button aria-label="Notifications" className="relative rounded-md px-2 py-1 hover:bg-surface-2" onClick={() => setOpen((o) => !o)}>
         🔔
-        {unread > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-danger px-1.5 text-[10px] text-white">{unread}</span>}
+        {unread > 0 && <span key={unread} className="absolute -right-1 -top-1 rounded-full bg-danger px-1.5 text-[10px] text-white animate-pop">{unread}</span>}
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-surface shadow-lg">
+        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] origin-top-right rounded-lg border border-border bg-surface shadow-lg animate-scale-in">
           <div className="flex items-center justify-between border-b border-border px-3 py-2 text-sm">
             <span className="font-medium">Notifications</span>
             {unread > 0 && <button className="text-primary" onClick={() => markRead.mutate()}>Mark all read</button>}

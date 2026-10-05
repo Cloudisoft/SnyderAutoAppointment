@@ -57,7 +57,7 @@ export function PublicAppointmentPage() {
   if (q.error || !q.data) {
     return (
       <Shell>
-        <div className="py-16 text-center">
+        <div className="py-16 text-center animate-fade-up">
           <h1 className="text-xl font-semibold">This link isn’t valid</h1>
           <p className="mt-2 text-muted">It may have expired. Please reply to your confirmation email if you need help.</p>
         </div>
@@ -77,9 +77,9 @@ export function PublicAppointmentPage() {
 
   return (
     <Shell business={a.business_name}>
-      {notice && <div role="status" className="mb-4 rounded-lg border border-success/40 bg-success/10 p-3 text-sm">{notice}</div>}
+      {notice && <div role="status" key={notice} className="mb-4 rounded-lg border border-success/40 bg-success/10 p-3 text-sm animate-pop">{notice}</div>}
       <p className="text-sm text-muted">{a.first_name ? `Hi ${a.first_name},` : 'Hello,'} here are your appointment details.</p>
-      <div className="mt-4 rounded-xl border border-border bg-surface p-5">
+      <div className="mt-4 rounded-xl border border-border bg-surface p-5 shadow-sm animate-fade-up">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm text-muted">{a.appointment_type}</p>
@@ -112,7 +112,7 @@ export function PublicAppointmentPage() {
       </div>
 
       {a.can_modify && mode === 'view' && (
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-4 grid grid-cols-2 gap-2 animate-fade-up [animation-delay:80ms]">
           <Button onClick={() => { setNotice(null); setMode('reschedule'); }}>Reschedule</Button>
           <Button variant="ghost" className="text-danger" onClick={() => { setNotice(null); setMode('cancel'); }}>Cancel</Button>
         </div>
@@ -172,7 +172,7 @@ function Reschedule({ token, zone, current, onCancel, onDone }: { token: string;
     },
   });
   return (
-    <section className="mt-4 rounded-xl border border-border bg-surface p-4">
+    <section className="mt-4 rounded-xl border border-border bg-surface p-4 animate-fade-up">
       <h2 className="font-semibold">Pick a new time</h2>
       <p className="text-xs text-muted">Currently {DateTime.fromISO(current, { zone }).toFormat("ccc, LLL d 'at' h:mm a")}</p>
       {slots.isLoading && <div className="py-6 text-center"><Spinner /></div>}
@@ -184,17 +184,17 @@ function Reschedule({ token, zone, current, onCancel, onDone }: { token: string;
               const dt = DateTime.fromISO(d, { zone });
               return (
                 <button key={d} role="tab" aria-selected={activeDay === d} onClick={() => { setDay(d); setPicked(null); }}
-                  className={cx('min-w-16 shrink-0 rounded-lg border px-3 py-2 text-center text-sm', activeDay === d ? 'border-primary bg-primary text-primary-fg' : 'border-border')}>
+                  className={cx('min-w-16 shrink-0 rounded-lg border px-3 py-2 text-center text-sm transition-colors duration-150 active:scale-95', activeDay === d ? 'border-primary bg-primary text-primary-fg' : 'border-border')}>
                   <span className="block text-xs">{dt.toFormat('ccc')}</span>
                   <span className="block font-semibold">{dt.toFormat('LLL d')}</span>
                 </button>
               );
             })}
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {(activeDay ? byDay.get(activeDay) ?? [] : []).map((s) => (
-              <button key={s.start_utc + s.host_id} onClick={() => setPicked(s)}
-                className={cx('rounded-md border px-2 py-2 text-sm', picked === s ? 'border-primary bg-primary/10 font-semibold' : 'border-border hover:bg-surface-2')}>
+          <div key={activeDay ?? ''} className="mt-3 grid grid-cols-3 gap-2 stagger">
+            {(activeDay ? byDay.get(activeDay) ?? [] : []).map((s, i) => (
+              <button key={s.start_utc + s.host_id} onClick={() => setPicked(s)} style={{ ['--i' as string]: i }}
+                className={cx('rounded-md border px-2 py-2 text-sm transition-colors duration-150 active:scale-95', picked === s ? 'border-primary bg-primary/10 font-semibold' : 'border-border hover:bg-surface-2')}>
                 {DateTime.fromISO(s.start_utc, { zone }).toFormat('h:mm a')}
               </button>
             ))}
@@ -216,7 +216,7 @@ function Cancel({ token, onBack, onDone }: { token: string; onBack(): void; onDo
   const [reason, setReason] = useState('');
   const m = useMutation({ mutationFn: () => api.public.post<PublicAppointment>(`/public/appointments/${token}/cancel`, { reason }), onSuccess: onDone });
   return (
-    <section className="mt-4 rounded-xl border border-border bg-surface p-4">
+    <section className="mt-4 rounded-xl border border-border bg-surface p-4 animate-fade-up">
       <h2 className="font-semibold">Cancel this appointment?</h2>
       <label className="mt-3 block text-sm">
         <span className="text-muted">Reason (optional)</span>

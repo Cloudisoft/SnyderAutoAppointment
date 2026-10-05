@@ -19,7 +19,7 @@ export function CallEventStream({ events }: { events: CallEvent[] }) {
         if (e.type === 'transcript') {
           const ai = e.role === 'assistant';
           return (
-            <li key={e.id} className={ai ? 'flex justify-start' : 'flex justify-end'}>
+            <li key={e.id} className={ai ? 'flex justify-start animate-fade-up' : 'flex justify-end animate-fade-up'}>
               <div className={ai ? 'max-w-[85%] rounded-lg bg-surface-2 px-3 py-2 text-sm' : 'max-w-[85%] rounded-lg bg-primary/10 px-3 py-2 text-sm'}>
                 <span className="block text-[10px] uppercase tracking-wide text-muted">{ai ? 'AI' : 'Prospect'} · {formatTime(e.created_at)}</span>
                 {e.content}
@@ -29,7 +29,7 @@ export function CallEventStream({ events }: { events: CallEvent[] }) {
         }
         if (e.type === 'booking') {
           return (
-            <li key={e.id} className="rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-sm">
+            <li key={e.id} className="rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-sm animate-pop">
               <Badge tone="green">Booking</Badge> <span className="ml-1">{e.content}</span>
               <span className="ml-2 text-xs text-muted">{formatTime(e.created_at)}</span>
             </li>
@@ -37,7 +37,7 @@ export function CallEventStream({ events }: { events: CallEvent[] }) {
         }
         const failed = e.type === 'tool' && e.metadata?.ok === false;
         return (
-          <li key={e.id} className="text-center text-xs text-muted">
+          <li key={e.id} className="text-center text-xs text-muted animate-fade-in">
             {e.type === 'tool' ? `Tool: ${e.content}${failed ? ' (failed, fallback used)' : ''}` : e.type === 'status' ? `Status: ${e.content}` : e.content}
             {' · '}
             {formatTime(e.created_at)}

@@ -2,7 +2,7 @@ import { LEAD_STATUSES, LEAD_STATUS_LABELS, type LeadStatus } from '@snyder/shar
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { Badge, Button, Card, EmptyState, ErrorText, Field, Input, Modal, PageHeader, Select, Table, Tabs, Td } from '../components/ui';
+import { Badge, Button, Card, EmptyState, ErrorText, Field, Input, Modal, PageHeader, Select, SkeletonRows, Table, Tabs, Td } from '../components/ui';
 import { api } from '../lib/api';
 import { formatDate } from '../lib/format';
 
@@ -71,7 +71,7 @@ function LeadsTab() {
           </div>
         )}
       </div>
-      {leads.data && leads.data.rows.length === 0 ? (
+      {leads.isLoading ? <SkeletonRows /> : leads.data && leads.data.rows.length === 0 ? (
         <EmptyState title="No leads found">Import a CSV with at least a phone column.</EmptyState>
       ) : (
         <Table head={['Name', 'Phone', 'Email', 'Company', 'Status', 'Added']}>

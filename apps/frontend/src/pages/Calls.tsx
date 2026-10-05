@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { DateTime } from 'luxon';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CallEventStream, type CallEvent } from '../components/calls/CallEvents';
-import { Badge, Card, Drawer, EmptyState, Input, PageHeader, Select, Table, Td } from '../components/ui';
+import { Badge, Card, Drawer, EmptyState, Input, PageHeader, Select, SkeletonRows, Table, Td } from '../components/ui';
 import { api } from '../lib/api';
 import { formatDateTime, formatDuration } from '../lib/format';
 
@@ -63,7 +63,7 @@ export function CallsPage() {
           {(dispositions.data ?? []).map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
         </Select>
       </div>
-      {calls.data?.rows.length === 0 ? (
+      {calls.isLoading ? <SkeletonRows /> : calls.data?.rows.length === 0 ? (
         <EmptyState title="No calls yet" />
       ) : (
         <Table head={['When', 'Lead', 'Number', 'Campaign', 'Duration', 'Disposition']}>

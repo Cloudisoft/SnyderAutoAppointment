@@ -27,6 +27,8 @@ export function DailyBars({ data, label, format = (n) => String(n) }: { data: { 
                 rx={Math.min(1.2, barW * 0.2)}
                 fill="var(--primary)"
                 opacity={hover === null || hover === i ? 1 : 0.45}
+                className="bar-grow"
+                style={{ animationDelay: `${Math.min(i, 30) * 12}ms`, transition: 'opacity 150ms' }}
               />
             </g>
           );
@@ -41,7 +43,7 @@ export function DailyBars({ data, label, format = (n) => String(n) }: { data: { 
       </div>
       {hover !== null && data[hover] && (
         <div
-          className="pointer-events-none absolute -top-2 rounded-md border border-border bg-surface px-2 py-1 text-xs shadow"
+          className="pointer-events-none absolute -top-2 rounded-md border border-border bg-surface px-2 py-1 text-xs shadow animate-fade-in"
           style={{ left: `min(calc(${(hover + 0.5) * barW}% - 40px), calc(100% - 90px))` }}
         >
           <div className="text-muted">{DateTime.fromISO(data[hover].day).toFormat('ccc, LLL d')}</div>

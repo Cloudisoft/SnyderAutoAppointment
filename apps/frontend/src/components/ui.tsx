@@ -25,7 +25,7 @@ export function Button({
       {...rest}
       disabled={rest.disabled || loading}
       className={cx(
-        'inline-flex items-center justify-center gap-2 rounded-md font-medium transition disabled:opacity-50 disabled:cursor-not-allowed',
+        'inline-flex items-center justify-center gap-2 rounded-md font-medium transition duration-150 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100',
         size === 'sm' ? 'h-8 px-3 text-sm' : 'h-10 px-4 text-sm',
         variants[variant],
         className,
@@ -38,7 +38,7 @@ export function Button({
 }
 
 const fieldBase =
-  'w-full rounded-md border border-border bg-surface px-3 text-sm text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/40';
+  'w-full rounded-md border border-border bg-surface px-3 text-sm text-fg placeholder:text-muted transition-shadow duration-150 focus:outline-none focus:ring-2 focus:ring-primary/40';
 
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cx(fieldBase, 'h-10', props.className)} />;
@@ -80,7 +80,7 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
 
 export function Card({ title, actions, children, className }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cx('rounded-lg border border-border bg-surface', className)}>
+    <section className={cx('rounded-lg border border-border bg-surface animate-fade-up transition-shadow duration-200 hover:shadow-sm', className)}>
       {(title || actions) && (
         <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
           <h2 className="font-semibold">{title}</h2>
@@ -116,7 +116,7 @@ export function Spinner({ small }: { small?: boolean }) {
 
 export function PageHeader({ title, description, actions }: { title: string; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3 animate-fade-in">
       <div>
         <h1 className="text-xl font-semibold">{title}</h1>
         {description && <p className="text-sm text-muted mt-1">{description}</p>}
@@ -128,7 +128,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
 
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="rounded-lg border border-dashed border-border p-8 text-center">
+    <div className="rounded-lg border border-dashed border-border p-8 text-center animate-fade-in">
       <p className="font-medium">{title}</p>
       {children && <div className="mt-2 text-sm text-muted">{children}</div>}
     </div>
@@ -153,8 +153,8 @@ export function Modal({ open, onClose, title, children, footer }: { open: boolea
   useEscape(open, onClose);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose}>
-      <div role="dialog" aria-modal="true" className="w-full sm:max-w-lg max-h-[90vh] overflow-auto rounded-t-xl sm:rounded-xl bg-surface border border-border" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 animate-fade-in" onClick={onClose}>
+      <div role="dialog" aria-modal="true" className="w-full sm:max-w-lg max-h-[90vh] overflow-auto rounded-t-xl sm:rounded-xl bg-surface border border-border shadow-xl animate-sheet-up sm:animate-scale-in" onClick={(e) => e.stopPropagation()}>
         <header className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="font-semibold">{title}</h2>
           <button aria-label="Close" onClick={onClose} className="text-muted hover:text-fg">✕</button>
@@ -170,8 +170,8 @@ export function Drawer({ open, onClose, title, children }: { open: boolean; onCl
   useEscape(open, onClose);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 bg-black/40" onClick={onClose}>
-      <aside className="absolute right-0 top-0 h-full w-full max-w-xl overflow-auto bg-surface border-l border-border" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-black/40 animate-fade-in" onClick={onClose}>
+      <aside className="absolute right-0 top-0 h-full w-full max-w-xl overflow-auto bg-surface border-l border-border shadow-xl animate-slide-in-right" onClick={(e) => e.stopPropagation()}>
         <header className="sticky top-0 flex items-center justify-between border-b border-border bg-surface px-4 py-3">
           <h2 className="font-semibold">{title}</h2>
           <button aria-label="Close" onClick={onClose} className="text-muted hover:text-fg">✕</button>
@@ -189,7 +189,7 @@ export function Tabs<T extends string>({ value, onChange, tabs }: { value: T; on
         <button
           key={t.value}
           onClick={() => onChange(t.value)}
-          className={cx('px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px', value === t.value ? 'border-primary text-fg font-medium' : 'border-transparent text-muted hover:text-fg')}
+          className={cx('px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors duration-150', value === t.value ? 'border-primary text-fg font-medium' : 'border-transparent text-muted hover:text-fg')}
         >
           {t.label}
         </button>
@@ -205,9 +205,29 @@ export function Table({ head, children }: { head: ReactNode[]; children: ReactNo
         <thead className="bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">
           <tr>{head.map((h, i) => <th key={i} className="px-3 py-2 font-medium">{h}</th>)}</tr>
         </thead>
-        <tbody className="divide-y divide-border">{children}</tbody>
+        <tbody className="divide-y divide-border animate-fade-in [&>tr]:transition-colors [&>tr]:duration-150">{children}</tbody>
       </table>
     </div>
   );
 }
 export const Td = ({ children, className }: { children?: ReactNode; className?: string }) => <td className={cx('px-3 py-2 align-top', className)}>{children}</td>;
+
+/** Shimmering placeholder while data loads. */
+export function Skeleton({ className }: { className?: string }) {
+  return <div aria-hidden className={cx('skeleton h-4', className)} />;
+}
+
+/** Placeholder rows for tables and lists. */
+export function SkeletonRows({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="space-y-3 rounded-lg border border-border bg-surface p-4" aria-label="Loading">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="flex gap-4">
+          <Skeleton className="w-1/4" />
+          <Skeleton className="w-1/3" />
+          <Skeleton className="w-1/5" />
+        </div>
+      ))}
+    </div>
+  );
+}

@@ -20,12 +20,15 @@ export function LiveMonitorPage() {
         <EmptyState title="No live calls right now" />
       ) : (
         <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-          <ul className="space-y-2">
-            {calls.map((c) => (
-              <li key={c.id}>
-                <button onClick={() => setSelected(c.id)} className={`w-full rounded-lg border p-3 text-left ${active === c.id ? 'border-primary bg-primary/5' : 'border-border bg-surface'}`}>
+          <ul className="space-y-2 stagger">
+            {calls.map((c, i) => (
+              <li key={c.id} style={{ ['--i' as string]: i }}>
+                <button onClick={() => setSelected(c.id)} className={`w-full rounded-lg border p-3 text-left transition-colors duration-150 ${active === c.id ? 'border-primary bg-primary/5' : 'border-border bg-surface'}`}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">{[c.first_name, c.last_name].filter(Boolean).join(' ') || c.to_number}</span>
+                    <span className="flex items-center gap-2 font-medium">
+                      {c.status === 'in_progress' && <span aria-hidden className="h-2 w-2 rounded-full bg-success animate-live" />}
+                      {[c.first_name, c.last_name].filter(Boolean).join(' ') || c.to_number}
+                    </span>
                     <Badge tone={c.status === 'in_progress' ? 'green' : 'amber'}>{c.status.replace('_', ' ')}</Badge>
                   </div>
                   <p className="text-xs text-muted">{c.campaign_name} · {formatRelative(c.started_at ?? c.created_at)}</p>

@@ -39,13 +39,13 @@ export function DashboardPage() {
         </Select>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Calls" value={k.calls ?? 0} />
-        <StatTile label="Connected" value={k.connected ?? 0} hint={`${pct(k.connect_rate ?? 0)} connect rate`} />
-        <StatTile label="Avg talk time" value={formatDuration(k.avg_talk_seconds ?? 0)} />
+        <StatTile index={0} label="Calls" value={k.calls ?? 0} />
+        <StatTile index={1} label="Connected" value={k.connected ?? 0} hint={`${pct(k.connect_rate ?? 0)} connect rate`} />
+        <StatTile index={2} label="Avg talk time" value={k.avg_talk_seconds ?? 0} format={(n) => formatDuration(Math.round(n))} />
         {'appointments_booked' in k && (
-          <StatTile label="Appointments booked" value={k.appointments_booked ?? 0} hint={`${(k.booked_per_100_connected ?? 0).toFixed(1)} per 100 connected calls`} />
+          <StatTile index={3} label="Appointments booked" value={k.appointments_booked ?? 0} hint={`${(k.booked_per_100_connected ?? 0).toFixed(1)} per 100 connected calls`} />
         )}
-        {'show_rate' in k && <StatTile label="Show rate" value={k.show_rate == null || k.show_rate < 0 ? '—' : pct(k.show_rate)} hint="Completed ÷ (completed + no-show)" />}
+        {'show_rate' in k && <StatTile index={4} label="Show rate" value={k.show_rate == null || k.show_rate < 0 ? '—' : k.show_rate} format={pct} hint="Completed ÷ (completed + no-show)" />}
       </div>
       <Card title="Calls per day">
         <DailyBars label="Calls" data={(q.data?.daily ?? []).map((d) => ({ day: d.day, value: d.calls ?? 0 }))} />
@@ -63,7 +63,7 @@ export function DashboardPage() {
               <Td className="tabular-nums">{d.n}</Td>
               <Td>
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-32 rounded-full bg-surface-2"><div className="h-2 rounded-full bg-primary" style={{ width: `${total ? (d.n / total) * 100 : 0}%` }} /></div>
+                  <div className="h-2 w-32 rounded-full bg-surface-2"><div className="h-2 rounded-full bg-primary transition-[width] duration-500 ease-out" style={{ width: `${total ? (d.n / total) * 100 : 0}%` }} /></div>
                   <span className="text-xs text-muted tabular-nums">{total ? pct(d.n / total) : '—'}</span>
                 </div>
               </Td>
