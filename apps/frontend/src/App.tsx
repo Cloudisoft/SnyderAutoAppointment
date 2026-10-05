@@ -5,7 +5,10 @@ import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { AppShell } from './components/AppShell';
 import { EmptyState, Spinner } from './components/ui';
 import { applyTheme } from './lib/theme';
+import { CallsPage } from './pages/Calls';
 import { CampaignEditorPage } from './pages/CampaignEditor';
+import { LiveMonitorPage } from './pages/LiveMonitor';
+import { DispositionsSettings } from './pages/settings/Dispositions';
 import { CampaignsPage } from './pages/Campaigns';
 import { LeadsPage } from './pages/Leads';
 import { AgentsSettings } from './pages/settings/Agents';
@@ -60,6 +63,8 @@ export function App() {
               <Route index element={<EmptyState title="Dashboard coming soon" />} />
               <Route path="campaigns" element={<RequirePermission permission="campaigns.view"><CampaignsPage /></RequirePermission>} />
               <Route path="campaigns/:id" element={<RequirePermission permission="campaigns.view"><CampaignEditorPage /></RequirePermission>} />
+              <Route path="calls" element={<RequirePermission permission="calls.view"><CallsPage /></RequirePermission>} />
+              <Route path="monitor" element={<RequirePermission permission="monitor.view"><LiveMonitorPage /></RequirePermission>} />
               <Route path="leads" element={<RequirePermission permission="leads.view"><LeadsPage /></RequirePermission>} />
               <Route path="settings" element={<SettingsLayout />}>
                 <Route index element={<SettingsIndex />} />
@@ -68,6 +73,7 @@ export function App() {
                 <Route path="voices" element={<RequirePermission permission="settings.manage"><VoicesSettings /></RequirePermission>} />
                 <Route path="numbers" element={<RequirePermission permission="settings.manage"><PhoneNumbersSettings /></RequirePermission>} />
                 <Route path="agents" element={<RequirePermission permission="settings.manage"><AgentsSettings /></RequirePermission>} />
+                <Route path="dispositions" element={<RequirePermission permission="settings.manage"><DispositionsSettings /></RequirePermission>} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

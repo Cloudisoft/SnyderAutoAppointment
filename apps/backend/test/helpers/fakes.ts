@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { CartesiaClient } from '../../src/integrations/cartesia';
+import type { CallExtraction, OpenAiClient } from '../../src/integrations/openai';
 import type { TwilioClient } from '../../src/integrations/twilio';
 import type { VapiCall, VapiCallRequest, VapiClient } from '../../src/integrations/vapi';
 import { UpstreamError } from '../../src/lib/http';
@@ -52,3 +53,13 @@ export const fakeTwilio: TwilioClient = {
     return [{ sid: 'PN1', phone_number: '+12125550100', friendly_name: 'Main' }];
   },
 };
+
+export class FakeOpenAi implements OpenAiClient {
+  enabled = true;
+  next: Partial<CallExtraction> = {};
+  calls = 0;
+  async extractCall() {
+    this.calls++;
+    return { summary: 'Prospect discussed the offer.', meeting_agreed: false, meeting_start: null, attendee_email: null, notes: null, ...this.next };
+  }
+}

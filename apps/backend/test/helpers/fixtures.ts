@@ -88,3 +88,39 @@ export async function createPublishedCampaign(
   if (!res.versionId) throw new Error(`publish failed: ${res.errors.join('; ')}`);
   return { campaignId, versionId: res.versionId, agentId, numberId };
 }
+
+/** Inserts a dialed call (with its campaign lead) as the dialer would. */
+export async function createCall(
+  db: Db,
+  orgId: string,
+  c: { campaignId: string; versionId: string; leadId: string; vapiCallId?: string; bookingTools?: boolean; createdAt?: string },
+) {
+  const { rows: cl } = await db.query<{ id: string }>(
+    `insert into campaign_leads(organization_id, campaign_id, lead_id, state, attempts) values ($1, $2, $3, 'dialing', 1)
+     on conflict (campaign_id, lead_id) do update set state = 'dialing', attempts = campaign_leads.attempts + 1 returning id`,
+    [orgId, c.campaignId, c.leadId],
+  );
+  const { rows } = await db.query<{ id: string; vapi_call_id: string }>(
+    `insert into calls(organization_id, campaign_id, campaign_version_id, campaign_lead_id, lead_id, vapi_call_id, to_number,
+                       status, started_at, booking_tools_enabled, created_at)
+     values ($1, $2, $3, $4, $5, $6, '+12125550142', 'in_progress', now(), $7, coalesce($8::timestamptz, now()))
+     returning id, vapi_call_id`,
+    [orgId, c.campaignId, c.versionId, cl[0]!.id, c.leadId, c.vapiCallId ?? `vapi_${uniq()}`, c.bookingTools ?? false, c.createdAt ?? null],
+  );
+  return { callId: rows[0]!.id, vapiCallId: rows[0]!.vapi_call_id, campaignLeadId: cl[0]!.id };
+}
+
+export function endOfCallReport(vapiCallId: string, over: Record<string, unknown> = {}) {
+  return {
+    message: {
+      type: 'end-of-call-report',
+      endedReason: 'customer-ended-call',
+      call: { id: vapiCallId },
+      startedAt: '2026-10-12T14:00:00Z',
+      endedAt: '2026-10-12T14:04:00Z',
+      artifact: { transcript: 'AI: Hi there\nUser: Sure, sounds good.', recordingUrl: 'https://rec.example/1.wav' },
+      analysis: { summary: 'Prospect interested.' },
+      ...over,
+    },
+  };
+}
