@@ -3,6 +3,7 @@ import Fastify, { type FastifyBaseLogger } from 'fastify';
 import { defaultCallPipeline } from './composition';
 import type { Deps } from './deps';
 import type { CallPipeline } from './modules/calls/pipeline';
+import { registerPublicAppointmentRoutes } from './modules/appointments/publicRoutes';
 import { registerTwilioSmsWebhook } from './modules/appointments/notifications/smsWebhook';
 import { registerAnalyticsRoutes } from './modules/analytics/routes';
 import { registerCallRoutes } from './modules/calls/routes';
@@ -38,6 +39,7 @@ export async function buildApp(deps: Deps, pipeline: CallPipeline = defaultCallP
   await registerAnalyticsRoutes(app, deps);
   await registerVapiWebhook(app, deps, pipeline);
   await registerTwilioSmsWebhook(app, deps);
+  await registerPublicAppointmentRoutes(app, deps);
 
   return app;
 }

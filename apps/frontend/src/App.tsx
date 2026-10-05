@@ -14,6 +14,7 @@ import { CampaignsPage } from './pages/Campaigns';
 import { LeadsPage } from './pages/Leads';
 import { AgentsSettings } from './pages/settings/Agents';
 import { LoginPage } from './pages/Login';
+import { PublicAppointmentPage } from './pages/public/AppointmentPage';
 import { OnboardingPage } from './pages/Onboarding';
 import { OrganizationSettings } from './pages/settings/OrganizationSettings';
 import { SETTINGS_NAV, SettingsLayout } from './pages/settings/SettingsLayout';
@@ -60,6 +61,8 @@ export function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            {/* Public, no login: the prospect's personal appointment link. */}
+            <Route path="/a/:token" element={<PublicAppointmentPage />} />
             <Route element={<RequireAuth><AppShell /></RequireAuth>}>
               <Route index element={<RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission>} />
               <Route path="campaigns" element={<RequirePermission permission="campaigns.view"><CampaignsPage /></RequirePermission>} />

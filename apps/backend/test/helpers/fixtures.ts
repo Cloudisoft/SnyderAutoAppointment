@@ -190,3 +190,28 @@ export async function createBookingCampaign(db: Db, orgId: string, settings: Rec
 export function toolCallPayload(vapiCallId: string, name: string, args: Record<string, unknown>, id = `tc_${uniq()}`) {
   return { message: { type: 'tool-calls', call: { id: vapiCallId }, toolCallList: [{ id, type: 'function', function: { name, arguments: args } }] } };
 }
+
+/** Books a slot through the Vapi tools, ends the call (connected) and returns the confirmed appointment and its link token. */
+export async function bookAndConfirm(
+  app: { inject: (o: object) => Promise<{ json(): any }> },
+  db: Db,
+  orgId: string,
+  campaign: { campaignId: string; versionId: string },
+  opts: { phone: string; email?: string; prefs?: Record<string, string>; mailer: { sent: { to: string; text: string }[] } },
+) {
+  const headers = { 'x-vapi-secret': 'test-vapi-webhook-secret-0123456789' };
+  const leadId = await createLead(db, orgId, { phone_e164: opts.phone, email: opts.email ?? 'ada@example.com' });
+  const call = await createCall(db, orgId, { ...campaign, leadId, bookingTools: true });
+  await app.inject({ method: 'POST', url: '/webhooks/vapi', headers, payload: toolCallPayload(call.vapiCallId, 'check_availability', opts.prefs ?? {}) });
+  const r = await app.inject({
+    method: 'POST', url: '/webhooks/vapi', headers,
+    payload: toolCallPayload(call.vapiCallId, 'book_appointment', { slot_id: 'slot_1', attendee_name: 'Ada Lovelace', attendee_email: opts.email ?? 'ada@example.com' }),
+  });
+  if (!String(r.json().results[0].result).startsWith('Booked')) throw new Error(`booking failed: ${r.json().results[0].result}`);
+  await app.inject({ method: 'POST', url: '/webhooks/vapi', headers, payload: endOfCallReport(call.vapiCallId) });
+  const { rows } = await db.query<{ id: string }>('select id from appointments where call_id = $1', [call.callId]);
+  const email = [...opts.mailer.sent].reverse().find((m) => m.to === (opts.email ?? 'ada@example.com') && /\/a\//.test(m.text));
+  const token = email?.text.match(/\/a\/([A-Za-z0-9_-]{43})/)?.[1];
+  if (!token) throw new Error('no confirmation email with link');
+  return { appointmentId: rows[0]!.id, token, leadId, ...call };
+}
