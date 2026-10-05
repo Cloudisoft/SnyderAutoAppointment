@@ -6,6 +6,22 @@ export class UpstreamError extends Error {
   ) {
     super(`${service} responded ${status}: ${body.slice(0, 500)}`);
   }
+
+  /** Short, user-facing explanation (the upstream's own message when it sends one). */
+  get userMessage(): string {
+    let detail = this.body;
+    try {
+      const j = JSON.parse(this.body) as { message?: unknown; error?: unknown };
+      const m = j.message ?? j.error;
+      detail = Array.isArray(m) ? m.join('; ') : typeof m === 'string' ? m : typeof m === 'object' && m ? JSON.stringify(m) : this.body;
+    } catch {
+      /* not JSON */
+    }
+    detail = detail.slice(0, 300);
+    if (this.status === 0) return `${this.service}: ${detail}`;
+    if (this.status === 401 || this.status === 403) return `${this.service} rejected the API key (${this.status}). Check the ${this.service} credentials.`;
+    return `${this.service} error (${this.status}): ${detail || 'no details'}`;
+  }
 }
 
 /** fetch + JSON with a hard timeout and readable upstream errors. */
@@ -15,7 +31,15 @@ export async function fetchJson<T>(
   init: RequestInit & { timeoutMs?: number } = {},
 ): Promise<T> {
   const { timeoutMs = 15_000, ...rest } = init;
-  const res = await fetch(url, { ...rest, signal: AbortSignal.timeout(timeoutMs) });
+  let res: Response;
+  try {
+    res = await fetch(url, { ...rest, signal: AbortSignal.timeout(timeoutMs) });
+  } catch (err) {
+    if ((err as Error).name === 'TimeoutError' || (err as Error).name === 'AbortError') {
+      throw new TimeoutError(`${service} did not respond within ${Math.round(timeoutMs / 1000)}s`);
+    }
+    throw new UpstreamError(service, 0, `could not connect (${(err as Error).message})`);
+  }
   const text = await res.text();
   if (!res.ok) throw new UpstreamError(service, res.status, text);
   return (text ? JSON.parse(text) : undefined) as T;

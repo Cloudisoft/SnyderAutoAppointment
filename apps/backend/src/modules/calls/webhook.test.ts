@@ -80,6 +80,24 @@ describeDb('Vapi webhook and end-of-call pipeline', () => {
     expect(rows[0]).toEqual({ disposition_key: 'do_not_call', status: 'do_not_call', dnc: 1 });
   });
 
+  it('a live transfer is shown immediately and stays flagged after the end-of-call report', async () => {
+    const app = await buildApp(testDeps());
+    const leadId = await createLead(testPool(), org.orgId, { phone_e164: '+12125550177' });
+    const { callId, vapiCallId } = await createCall(testPool(), org.orgId, { ...campaign, leadId });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/webhooks/vapi',
+      headers: secret,
+      payload: { message: { type: 'transfer-update', call: { id: vapiCallId }, destination: { type: 'number', number: '+13125550100' } } },
+    });
+    expect(res.statusCode).toBe(200);
+    const ev = await testPool().query("select content from call_events where call_id = $1 and type = 'status'", [callId]);
+    expect(ev.rows.map((r) => r.content)).toContain('transferring to +13125550100');
+    await app.inject({ method: 'POST', url: '/webhooks/vapi', headers: secret, payload: endOfCallReport(vapiCallId) });
+    const { rows } = await testPool().query('select transferred from calls where id = $1', [callId]);
+    expect(rows[0].transferred).toBe(true);
+  });
+
   it('processes an end-of-call report once; duplicates are ignored', async () => {
     const app = await buildApp(testDeps());
     const leadId = await createLead(testPool(), org.orgId);

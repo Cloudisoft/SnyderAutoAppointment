@@ -44,7 +44,7 @@ export function PublicAppointmentPage() {
   const { token = '' } = useParams();
   const qc = useQueryClient();
   const key = ['public-appointment', token];
-  const q = useQuery({ queryKey: key, queryFn: () => api.public.get<PublicAppointment>(`/public/appointments/${token}`), retry: false });
+  const q = useQuery({ queryKey: key, queryFn: () => api.public.get<PublicAppointment>(`/public/appointments/${token}`), retry: false, meta: { silent: true } });
   const [zone, setZone] = useState<string | null>(null);
   const [mode, setMode] = useState<'view' | 'reschedule' | 'cancel'>('view');
   const [notice, setNotice] = useState<string | null>(null);
@@ -126,11 +126,16 @@ export function PublicAppointmentPage() {
 
 function Shell({ business, children }: { business?: string; children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-bg">
-      <main className="mx-auto w-full max-w-md px-4 py-8">
-        {business && <p className="mb-6 text-sm font-semibold tracking-wide">{business}</p>}
+    <div className="flex min-h-screen flex-col bg-bg">
+      <div className="h-1 w-full bg-primary" />
+      <main className="mx-auto w-full max-w-md flex-1 px-4 py-8 animate-page-in">
+        {business && <p className="mb-6 font-display text-lg font-extrabold tracking-tight">{business}</p>}
         {children}
       </main>
+      <footer className="flex items-center justify-center gap-2 py-6 text-xs text-muted">
+        <img src="/brand/mark.png" alt="" aria-hidden className="h-4 w-auto" />
+        Powered by Snyder Automation
+      </footer>
     </div>
   );
 }
@@ -166,6 +171,7 @@ function Reschedule({ token, zone, current, onCancel, onDone }: { token: string;
   const m = useMutation({
     mutationFn: () => api.public.post<PublicAppointment>(`/public/appointments/${token}/reschedule`, { start_utc: picked!.start_utc, host_id: picked!.host_id }),
     onSuccess: onDone,
+    meta: { silent: true },
     onError: () => {
       setPicked(null);
       void slots.refetch();
@@ -214,7 +220,7 @@ function Reschedule({ token, zone, current, onCancel, onDone }: { token: string;
 
 function Cancel({ token, onBack, onDone }: { token: string; onBack(): void; onDone(d: PublicAppointment): void }) {
   const [reason, setReason] = useState('');
-  const m = useMutation({ mutationFn: () => api.public.post<PublicAppointment>(`/public/appointments/${token}/cancel`, { reason }), onSuccess: onDone });
+  const m = useMutation({ mutationFn: () => api.public.post<PublicAppointment>(`/public/appointments/${token}/cancel`, { reason }), onSuccess: onDone, meta: { silent: true } });
   return (
     <section className="mt-4 rounded-xl border border-border bg-surface p-4 animate-fade-up">
       <h2 className="font-semibold">Cancel this appointment?</h2>

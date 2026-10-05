@@ -58,6 +58,35 @@ export async function registerTelephonyRoutes(app: FastifyInstance, deps: Deps) 
     return rows[0];
   });
 
+  // Bulk activate / deactivate / delete. Voices still used by an agent are deactivated-only.
+  app.post('/api/voices/bulk', { preHandler: manage }, async (req) => {
+    const { organizationId } = authOf(req);
+    const body = z
+      .object({ ids: z.array(z.string().uuid()).min(1).max(500), action: z.enum(['activate', 'deactivate', 'delete']) })
+      .parse(req.body);
+    if (body.action !== 'delete') {
+      const { rowCount } = await db.query('update voices set is_active = $3 where organization_id = $1 and id = any($2::uuid[])', [
+        organizationId,
+        body.ids,
+        body.action === 'activate',
+      ]);
+      const n = rowCount ?? 0;
+      return { affected: n, skipped: body.ids.length - n, message: `${body.action === 'activate' ? 'Activated' : 'Deactivated'} ${n} voice${n === 1 ? '' : 's'}` };
+    }
+    const { rowCount } = await db.query(
+      `delete from voices v where v.organization_id = $1 and v.id = any($2::uuid[])
+          and not exists (select 1 from agents a where a.voice_id = v.id)`,
+      [organizationId, body.ids],
+    );
+    const n = rowCount ?? 0;
+    const kept = body.ids.length - n;
+    return {
+      affected: n,
+      skipped: kept,
+      message: `Deleted ${n} voice${n === 1 ? '' : 's'}${kept ? `; ${kept} used by an agent were kept (deactivate them or change the agent first)` : ''}`,
+    };
+  });
+
   // --- Twilio accounts ------------------------------------------------------
   app.get('/api/twilio-accounts', { preHandler: manage }, async (req) => {
     const { organizationId } = authOf(req);

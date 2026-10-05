@@ -3,9 +3,10 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { TimeZoneSelect } from '../components/TimeZoneSelect';
-import { Badge, Button, Card, ErrorText, Field, Input, Modal, PageHeader, Select, Tabs, Table, Td } from '../components/ui';
+import { Badge, Button, Card, EmptyState, ErrorText, Field, Input, Modal, PageHeader, Select, SkeletonRows, Tabs, Table, Td } from '../components/ui';
 import { ApiError, api } from '../lib/api';
 import { formatDateTime } from '../lib/format';
+import { errorMessage, toast } from '../lib/toast';
 import { campaignStatusTone } from './Campaigns';
 import type { Agent } from './settings/Agents';
 import type { PhoneNumber } from './settings/PhoneNumbers';
@@ -53,6 +54,7 @@ export function CampaignEditorPage() {
   const [config, setConfig] = useState<CampaignConfigDraft | null>(null);
   const [dirty, setDirty] = useState(false);
   const [publishModal, setPublishModal] = useState<{ errors: string[]; warnings: string[] } | null>(null);
+  const [testResult, setTestResult] = useState<{ ok: boolean; errors: string[]; warnings: string[]; model?: string; voice?: string; tools?: string[]; recording?: boolean } | null>(null);
 
   useEffect(() => {
     if (q.data && !dirty) {
@@ -84,13 +86,27 @@ export function CampaignEditorPage() {
       setPublishModal(null);
       invalidate();
     },
+    meta: { silent: true },
     onError: (e) => {
       if (e instanceof ApiError && e.status === 422) setPublishModal(e.body as { errors: string[]; warnings: string[] });
+      else toast.error(errorMessage(e));
+    },
+  });
+  const testConfig = useMutation({
+    mutationFn: async () => {
+      if (dirty) await saveDraft.mutateAsync();
+      return api.post<{ ok: boolean; errors: string[]; warnings: string[]; model?: string; voice?: string; tools?: string[]; recording?: boolean }>(`/api/campaigns/${id}/test-config`);
+    },
+    onSuccess: (r) => {
+      setTestResult(r);
+      if (r.ok) toast.success('Vapi accepted this call setup');
+      else toast.error(r.errors[0] ?? 'Vapi rejected this call setup');
     },
   });
   const setStatus = useMutation({ mutationFn: (status: string) => api.post(`/api/campaigns/${id}/status`, { status }), onSuccess: invalidate });
 
-  if (!q.data || !config) return null;
+  if (q.isError) return <EmptyState title="This campaign could not be loaded.">{errorMessage(q.error)}</EmptyState>;
+  if (!q.data || !config) return <SkeletonRows rows={6} />;
   const c = q.data;
   const sectionProps: SectionProps = { config, setConfig: update, readOnly };
 
@@ -113,6 +129,7 @@ export function CampaignEditorPage() {
               ) : (
                 <Button disabled={!c.current_version_id} onClick={() => setStatus.mutate('active')}>Start</Button>
               )}
+              <Button loading={testConfig.isPending} onClick={() => testConfig.mutate()} title="Checks model, voice, tools and recording with Vapi without placing a call">Test call setup</Button>
               <Button loading={saveDraft.isPending} onClick={() => saveDraft.mutate()} disabled={!dirty}>Save draft</Button>
               <Button variant="primary" loading={check.isPending || publish.isPending} onClick={() => check.mutate()}>Save &amp; publish</Button>
             </>
@@ -120,6 +137,24 @@ export function CampaignEditorPage() {
         }
       />
       <ErrorText error={saveDraft.error ?? setStatus.error ?? check.error} />
+      {testResult && (
+        <div className={`mb-4 rounded-xl border p-4 text-sm animate-page-in ${testResult.ok ? 'border-success/30 bg-success/5' : 'border-danger/30 bg-danger/5'}`}>
+          <div className="flex items-start justify-between gap-3">
+            <p className="font-semibold">{testResult.ok ? '✓ Vapi accepted this call setup' : '✕ This call setup will not work yet'}</p>
+            <button className="text-muted hover:text-fg" onClick={() => setTestResult(null)} aria-label="Dismiss">✕</button>
+          </div>
+          {testResult.errors.map((e) => <p key={e} className="mt-1 text-danger">{e}</p>)}
+          {testResult.warnings.map((w) => <p key={w} className="mt-1 text-warning">{w}</p>)}
+          {testResult.model && (
+            <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-muted">
+              <dt>Model</dt><dd>{testResult.model}</dd>
+              <dt>Voice</dt><dd>{testResult.voice}</dd>
+              <dt>Tools</dt><dd>{testResult.tools?.join(', ')}</dd>
+              <dt>Recording</dt><dd>{testResult.recording ? 'On' : 'Off'}</dd>
+            </dl>
+          )}
+        </div>
+      )}
       <Tabs
         value={tab}
         onChange={setTab}

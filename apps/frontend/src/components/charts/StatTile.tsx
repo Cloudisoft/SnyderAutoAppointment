@@ -23,11 +23,12 @@ export function StatTile({
 }) {
   return (
     <div
-      className="rounded-lg border border-border bg-surface p-4 animate-fade-up transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-sm"
-      style={{ animationDelay: `${index * 50}ms` }}
+      className="group relative overflow-hidden rounded-xl border border-border bg-surface p-4 animate-page-in lift"
+      style={{ animationDelay: `${index * 70}ms` }}
     >
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{typeof value === 'number' ? <Animated value={value} format={format} /> : value}</p>
+      <span aria-hidden className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-primary transition-transform duration-300 group-hover:scale-x-100" />
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
+      <p className="mt-1 font-display text-3xl font-extrabold tabular-nums">{typeof value === 'number' ? <Animated value={value} format={format} /> : value}</p>
       {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
   );

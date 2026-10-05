@@ -1,9 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { DateTime } from 'luxon';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CallEventStream, type CallEvent } from '../components/calls/CallEvents';
-import { Badge, Card, Drawer, EmptyState, Input, PageHeader, Select, SkeletonRows, Table, Td } from '../components/ui';
+import { useAuth } from '../auth/AuthProvider';
+import { BulkBar, Checkbox, SelectAllCheckbox, useSelection, type BulkResult } from '../components/bulk';
+import { ExportButtons } from '../components/ExportButtons';
+import { Badge, Button, Card, ConfirmModal, Drawer, EmptyState, Input, PageHeader, Select, SkeletonRows, Table, Td, cx } from '../components/ui';
+import { toast } from '../lib/toast';
 import { api } from '../lib/api';
 import { formatDateTime, formatDuration } from '../lib/format';
 
@@ -24,6 +28,7 @@ export interface CallListRow {
 
 interface CallDetail extends CallListRow {
   summary: string | null;
+  transcript: string | null;
   recording_url: string | null;
   ended_reason: string | null;
   campaign_version: number | null;
@@ -35,42 +40,74 @@ interface CallDetail extends CallListRow {
 export const dispositionTone = (k: string | null) =>
   k === 'appointment_booked' ? 'green' : k === 'do_not_call' ? 'red' : k === 'call_connected' || k === 'transferred' ? 'blue' : 'gray';
 
+const PAGE = 100;
+
 export function CallsPage() {
+  const { can } = useAuth();
+  const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState('');
   const [campaign, setCampaign] = useState('');
   const [disposition, setDisposition] = useState('');
+  const [page, setPage] = useState(0);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const openId = params.get('call');
   const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: () => api.get<{ id: string; name: string }[]>('/api/campaigns') });
   const dispositions = useQuery({ queryKey: ['dispositions'], queryFn: () => api.get<{ key: string; label: string }[]>('/api/dispositions') });
-  const qs = new URLSearchParams({ limit: '100' });
-  if (q) qs.set('q', q);
-  if (campaign) qs.set('campaign_id', campaign);
-  if (disposition) qs.set('disposition', disposition);
+  const filters = new URLSearchParams();
+  if (q) filters.set('q', q);
+  if (campaign) filters.set('campaign_id', campaign);
+  if (disposition) filters.set('disposition', disposition);
+  const qs = new URLSearchParams(filters);
+  qs.set('limit', String(PAGE));
+  qs.set('offset', String(page * PAGE));
   const calls = useQuery({ queryKey: ['calls', qs.toString()], queryFn: () => api.get<{ rows: CallListRow[]; total: number }>(`/api/calls?${qs}`) });
+  const rows = calls.data?.rows ?? [];
+  const sel = useSelection(rows.map((c) => c.id), filters.toString());
+  const canDelete = can('calls.manage');
+  const exportQuery = new URLSearchParams(filters);
+  if (sel.count && !sel.allMatching) exportQuery.set('ids', sel.ids.slice(0, 1000).join(','));
+
+  const del = useMutation({
+    mutationFn: () => api.post<BulkResult>('/api/calls/bulk-delete', { ids: sel.ids }),
+    onSuccess: (r) => {
+      toast.success(r.message);
+      sel.clear();
+      setConfirmDelete(false);
+      void qc.invalidateQueries({ queryKey: ['calls'] });
+    },
+  });
+  const resetPage = <T,>(fn: (v: T) => void) => (v: T) => { fn(v); setPage(0); };
 
   return (
     <div>
-      <PageHeader title="Call records" description={calls.data ? `${calls.data.total} calls` : undefined} />
+      <PageHeader
+        title="Call records"
+        description={calls.data ? `${calls.data.total.toLocaleString()} calls · recordings, transcripts and outcomes` : undefined}
+        actions={<ExportButtons path="/api/calls/export" query={filters} name="call-records" />}
+      />
       <div className="mb-4 flex flex-wrap gap-2">
-        <Input className="max-w-xs" placeholder="Search name, email or phone" value={q} onChange={(e) => setQ(e.target.value)} />
-        <Select className="max-w-52" value={campaign} onChange={(e) => setCampaign(e.target.value)}>
+        <Input className="max-w-xs" placeholder="Search name, email or phone" value={q} onChange={(e) => resetPage(setQ)(e.target.value)} />
+        <Select className="max-w-52" value={campaign} onChange={(e) => resetPage(setCampaign)(e.target.value)} aria-label="Campaign">
           <option value="">All campaigns</option>
           {(campaigns.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
-        <Select className="max-w-52" value={disposition} onChange={(e) => setDisposition(e.target.value)}>
+        <Select className="max-w-52" value={disposition} onChange={(e) => resetPage(setDisposition)(e.target.value)} aria-label="Disposition">
           <option value="">All dispositions</option>
           {(dispositions.data ?? []).map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
         </Select>
       </div>
-      {calls.isLoading ? <SkeletonRows /> : calls.data?.rows.length === 0 ? (
-        <EmptyState title="No calls yet" />
+      {calls.isLoading ? <SkeletonRows /> : rows.length === 0 ? (
+        <EmptyState title={filters.toString() ? 'No calls match these filters' : 'No calls yet'}>
+          {filters.toString() ? 'Try clearing the search or filters.' : 'Calls appear here as soon as a campaign starts dialing.'}
+        </EmptyState>
       ) : (
-        <Table head={['When', 'Lead', 'Number', 'Campaign', 'Duration', 'Disposition']}>
-          {(calls.data?.rows ?? []).map((c) => (
-            <tr key={c.id} className="cursor-pointer hover:bg-surface-2" onClick={() => setParams({ call: c.id })}>
+        <Table head={[<SelectAllCheckbox key="all" sel={sel} />, 'When', 'Lead', 'Number', 'Campaign', 'Duration', 'Disposition']}>
+          {rows.map((c) => (
+            <tr key={c.id} className={cx('cursor-pointer', sel.has(c.id) && 'bg-primary-soft')} onClick={() => setParams({ call: c.id })}>
+              <Td className="w-8"><Checkbox label="Select call" checked={sel.has(c.id)} onChange={() => sel.toggle(c.id)} /></Td>
               <Td className="whitespace-nowrap">{formatDateTime(c.created_at)}</Td>
-              <Td>{[c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</Td>
+              <Td className="font-medium">{[c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</Td>
               <Td className="whitespace-nowrap">{c.to_number}</Td>
               <Td>{c.campaign_name ?? '—'}</Td>
               <Td>{formatDuration(c.duration_seconds)}</Td>
@@ -82,6 +119,26 @@ export function CallsPage() {
           ))}
         </Table>
       )}
+      {calls.data && calls.data.total > PAGE && (
+        <div className="mt-3 flex items-center justify-end gap-2 text-sm">
+          <span className="text-muted">{page * PAGE + 1}–{Math.min((page + 1) * PAGE, calls.data.total)} of {calls.data.total.toLocaleString()}</span>
+          <Button size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+          <Button size="sm" disabled={(page + 1) * PAGE >= calls.data.total} onClick={() => setPage(page + 1)}>Next</Button>
+        </div>
+      )}
+      <BulkBar sel={sel} noun="call">
+        <ExportButtons path="/api/calls/export" query={exportQuery} name="selected-calls" />
+        {canDelete && <Button size="sm" variant="danger" disabled={del.isPending} onClick={() => setConfirmDelete(true)}>Delete</Button>}
+      </BulkBar>
+      <ConfirmModal
+        open={confirmDelete}
+        title={`Delete ${sel.count} call record${sel.count === 1 ? '' : 's'}?`}
+        loading={del.isPending}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={() => del.mutate()}
+      >
+        Transcripts and activity for these calls are deleted. Leads and appointments are kept. Calls that are still live are skipped.
+      </ConfirmModal>
       <Drawer open={!!openId} onClose={() => setParams({})} title="Call details">
         {openId && <CallDetails id={openId} />}
       </Drawer>
@@ -92,7 +149,9 @@ export function CallsPage() {
 function CallDetails({ id }: { id: string }) {
   const q = useQuery({ queryKey: ['call', id], queryFn: () => api.get<CallDetail>(`/api/calls/${id}`) });
   const c = q.data;
-  if (!c) return null;
+  if (q.isError) return <EmptyState title="This call could not be loaded." />;
+  if (!c) return <SkeletonRows rows={4} />;
+  const hasTranscriptEvents = c.events.some((e) => e.type === 'transcript');
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
@@ -115,8 +174,18 @@ function CallDetails({ id }: { id: string }) {
         </Card>
       )}
       {c.summary && <Card title="Summary"><p className="text-sm">{c.summary}</p></Card>}
-      {c.recording_url && <audio controls src={c.recording_url} className="w-full" />}
-      <Card title="Transcript & activity"><CallEventStream events={c.events} /></Card>
+      {c.recording_url ? (
+        <Card title="Recording" actions={<a className="text-sm font-medium text-primary hover:underline" href={c.recording_url} target="_blank" rel="noreferrer" download>Download</a>}>
+          <audio controls preload="metadata" src={c.recording_url} className="w-full" />
+        </Card>
+      ) : (
+        c.status === 'ended' && <p className="text-sm text-muted">No recording for this call (it may not have connected).</p>
+      )}
+      <Card title="Transcript & activity">
+        {c.events.length ? <CallEventStream events={c.events} /> : null}
+        {!hasTranscriptEvents && c.transcript && <pre className="mt-2 whitespace-pre-wrap font-sans text-sm">{c.transcript}</pre>}
+        {!c.events.length && !c.transcript && <p className="text-sm text-muted">No transcript yet.</p>}
+      </Card>
     </>
   );
 }

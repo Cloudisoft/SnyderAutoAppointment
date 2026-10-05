@@ -16,6 +16,8 @@ export interface OrgMembership {
 interface AuthState {
   session: Session | null;
   loading: boolean;
+  /** Set when the profile could not be loaded (network or server error). */
+  error: unknown;
   organizations: OrgMembership[];
   org: OrgMembership | null;
   switchOrg(id: string): void;
@@ -54,6 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ['me', session?.user.id],
     enabled: !!session,
     queryFn: () => api.get<{ organizations: OrgMembership[] }>('/api/me'),
+    // RequireAuth shows its own error screen with a retry button.
+    meta: { silent: true },
   });
 
   const organizations = me.data?.organizations ?? [];
@@ -64,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       session,
       loading: sessionLoading || (!!session && me.isLoading),
+      error: me.isError ? me.error : null,
       organizations,
       org,
       switchOrg(id) {

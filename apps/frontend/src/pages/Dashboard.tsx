@@ -2,7 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { DailyBars } from '../components/charts/DailyBars';
 import { StatTile } from '../components/charts/StatTile';
-import { Card, PageHeader, Select, Table, Td } from '../components/ui';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/AuthProvider';
+import { GettingStarted } from '../components/GettingStarted';
+import { Card, Select, Table, Td } from '../components/ui';
 import { api } from '../lib/api';
 import { formatDuration } from '../lib/format';
 
@@ -14,7 +17,13 @@ export interface DashboardData {
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+}
+
 export function DashboardPage() {
+  const { org, can } = useAuth();
   const [days, setDays] = useState('30');
   const [campaign, setCampaign] = useState('');
   const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: () => api.get<{ id: string; name: string }[]>('/api/campaigns') });
@@ -25,7 +34,17 @@ export function DashboardPage() {
   const total = (q.data?.dispositions ?? []).reduce((s, d) => s + d.n, 0);
   return (
     <div className="space-y-6">
-      <PageHeader title="Dashboard" />
+      <section className="brand-glow relative overflow-hidden rounded-2xl p-6 text-white md:p-8 animate-page-in">
+        <img src="/brand/mark-dark.png" alt="" aria-hidden className="pointer-events-none absolute -right-6 -top-6 h-40 w-auto opacity-15 animate-float" />
+        <p className="text-sm font-medium text-white/60">{greeting()}</p>
+        <h1 className="mt-1 text-2xl font-extrabold md:text-3xl">{org?.name ?? 'Your workspace'}</h1>
+        <p className="mt-2 max-w-xl text-white/70">Your AI agents call, qualify, transfer and book. Here is how it is going.</p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          {can('campaigns.view') && <Link to="/campaigns" className="rounded-lg bg-[#fe5e01] px-4 py-2 text-sm font-semibold text-[#090d0d] transition-all duration-200 hover:-translate-y-px hover:bg-[#ff7a2e]">Campaigns</Link>}
+          {can('monitor.view') && <Link to="/monitor" className="rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-px hover:bg-white/10">Watch live calls</Link>}
+        </div>
+      </section>
+      <GettingStarted />
       <div className="flex flex-wrap gap-2">
         <Select className="max-w-40" value={days} onChange={(e) => setDays(e.target.value)} aria-label="Date range">
           <option value="1">Today</option>

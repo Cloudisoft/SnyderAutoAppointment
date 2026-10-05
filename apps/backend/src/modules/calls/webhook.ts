@@ -94,6 +94,22 @@ export async function registerVapiWebhook(app: FastifyInstance, deps: Deps, pipe
         return reply.send({});
       }
 
+      // Live transfer to a human: flag the call and show it in the live monitor right away.
+      case 'transfer-update': {
+        const call = await findCall(deps, msg);
+        if (call) {
+          const dest = (msg.destination as { number?: string; message?: string } | undefined)?.number;
+          await deps.db.query('update calls set transferred = true where id = $1', [call.id]);
+          await addCallEvent(deps.db, {
+            organizationId: call.organization_id,
+            callId: call.id,
+            type: 'status',
+            content: dest ? `transferring to ${dest}` : 'transferring to a human',
+          });
+        }
+        return reply.send({});
+      }
+
       case 'end-of-call-report': {
         const data = fromEndOfCallReport(msg as Parameters<typeof fromEndOfCallReport>[0]);
         const call = await findCall(deps, msg);
