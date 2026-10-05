@@ -37,7 +37,15 @@ notified in-app; confirming it from the Appointments page sends the email.
 Each organization configures its own SMTP server in **Settings → Email (SMTP)** (admins with
 `settings.manage`). The password is stored in Supabase Vault, a test send records the real SMTP
 error, and transports are cached until the settings change. The `SMTP_*` env vars are an optional
-platform fallback. Emails queued before SMTP works keep retrying with backoff.
+platform fallback.
+
+No per-appointment resending is needed:
+- Emails queued while SMTP isn't set up stay queued (checked every 15 minutes, no attempts used)
+  and send automatically as soon as settings are saved or a test succeeds.
+- Saving SMTP settings or a successful test also re-queues every failed email for appointments
+  that haven't ended; the Appointments page shows a banner and a single "Retry all failed emails"
+  action for provider outages.
+- Confirmations or updates for appointments that are already over are skipped, never sent late.
 
 ## Design notes
 

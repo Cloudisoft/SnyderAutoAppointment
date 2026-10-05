@@ -71,6 +71,15 @@ export function AppointmentsPage() {
   if (range.to) qs.set('to', range.to.toISO()!);
   const list = useQuery({ queryKey: ['appointments', qs.toString()], queryFn: () => api.get<{ rows: AppointmentListRow[]; total: number }>(`/api/appointments?${qs}`) });
   const openId = params.get('id');
+  const emailHealth = useQuery({
+    queryKey: ['notification-summary'],
+    queryFn: () => api.get<{ failed: number; waiting: number }>('/api/appointment-notifications/summary'),
+    refetchInterval: 60_000,
+  });
+  const retryAll = useMutation({
+    mutationFn: () => api.post<{ requeued: number }>('/api/appointment-notifications/retry-failed'),
+    onSuccess: () => emailHealth.refetch(),
+  });
   const exportQs = new URLSearchParams(qs);
   exportQs.delete('limit');
 
@@ -86,6 +95,28 @@ export function AppointmentsPage() {
           </>
         }
       />
+      {emailHealth.data && (emailHealth.data.waiting > 0 || emailHealth.data.failed > 0) && (
+        <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm animate-fade-up">
+          <span>
+            {emailHealth.data.waiting > 0 && (
+              <>
+                <strong>{emailHealth.data.waiting}</strong> email{emailHealth.data.waiting === 1 ? ' is' : 's are'} waiting because email isn’t set up. They’ll send automatically once it is.{' '}
+                <Link className="underline" to="/settings/email">Set up email</Link>
+              </>
+            )}
+            {emailHealth.data.waiting > 0 && emailHealth.data.failed > 0 && ' · '}
+            {emailHealth.data.failed > 0 && (
+              <>
+                <strong>{emailHealth.data.failed}</strong> email{emailHealth.data.failed === 1 ? '' : 's'} failed to send.
+              </>
+            )}
+          </span>
+          {emailHealth.data.failed > 0 && can('appointments.manage') && (
+            <Button size="sm" loading={retryAll.isPending} onClick={() => retryAll.mutate()}>Retry all failed emails</Button>
+          )}
+        </div>
+      )}
+      {retryAll.data && <p className="mb-3 text-sm text-success animate-fade-in">Retrying {retryAll.data.requeued} emails.</p>}
       <div className="mb-3 flex flex-wrap gap-2">
         <Input className="max-w-xs" placeholder="Search name, email or phone" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
         <Select className="max-w-48" value={filters.campaign_id} onChange={(e) => setFilters({ ...filters, campaign_id: e.target.value })} aria-label="Campaign">
