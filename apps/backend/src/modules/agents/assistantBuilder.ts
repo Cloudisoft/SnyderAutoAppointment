@@ -18,6 +18,8 @@ export interface AssistantExtension {
   name: string;
   tools: VapiTool[];
   promptSections: string[];
+  /** Optional extensions are dropped (and the call re-sent) if Vapi rejects the assistant config. */
+  optional?: boolean;
 }
 
 export interface BuildAssistantInput {

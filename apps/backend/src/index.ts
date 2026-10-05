@@ -1,4 +1,7 @@
 import { buildApp } from './app';
+import { defaultCallPipeline } from './composition';
+import { buildJobs } from './jobs';
+import { JobRunner } from './jobs/runner';
 import { loadConfig } from './config';
 import { createPool } from './db/pool';
 import { createCartesiaClient } from './integrations/cartesia';
@@ -16,7 +19,7 @@ import { createLogger } from './lib/logger';
 
 const config = loadConfig();
 const logger = createLogger(config.LOG_LEVEL);
-const db = createPool(config.DATABASE_URL);
+const db = createPool(config.DATABASE_URL, 20);
 
 const supabase = createSupabaseServiceClient(config);
 
@@ -32,10 +35,14 @@ const deps: Deps = {
   twilio: createTwilioClient(),
   openai: createOpenAiClient(config.OPENAI_API_KEY),
 };
-const app = await buildApp(deps);
+const pipeline = defaultCallPipeline();
+const app = await buildApp(deps, pipeline);
+const runner = new JobRunner(db, logger);
+if (config.JOBS_ENABLED) runner.start(buildJobs(deps, pipeline));
 
 const shutdown = async (signal: string) => {
   logger.info({ signal }, 'shutting down');
+  await runner.stop();
   await app.close();
   await db.end();
   process.exit(0);

@@ -4,20 +4,14 @@ import { withTx } from '../../db/pool';
 import type { Deps } from '../../deps';
 import { badRequest, notFound } from '../../lib/errors';
 import { authenticate, authenticateUser, authOf, requirePermission } from '../../plugins/auth';
+import { isValidTimeZone } from '../../lib/timezone';
 
 const OrgUpdate = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   time_zone: z.string().min(1).optional(),
 });
 
-export function isValidTimeZone(tz: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-}
+export { isValidTimeZone } from '../../lib/timezone';
 
 export async function registerOrgRoutes(app: FastifyInstance, deps: Deps) {
   const { db } = deps;
