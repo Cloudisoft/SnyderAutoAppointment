@@ -3,7 +3,92 @@ import { z } from 'zod';
 import type { Deps } from '../../deps';
 import { notFound } from '../../lib/errors';
 import { authenticate, authOf, requirePermission } from '../../plugins/auth';
+import { neutralize } from '../../lib/http';
+import { sendTableExport, type ExportColumn } from '../../lib/tableExport';
+import type { Db } from '../../db/pool';
 import { searchTerms } from '../leads/routes';
+
+const EXPORT_MAX_ROWS = 10_000;
+
+const CallQuery = z.object({
+  campaign_id: z.string().uuid().optional(),
+  disposition: z.string().optional(),
+  q: z.string().optional(),
+  from: z.string().datetime({ offset: true }).optional(),
+  to: z.string().datetime({ offset: true }).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+  /** Comma-separated call ids, to export just a selection. */
+  ids: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v.split(',').filter(Boolean) : undefined))
+    .pipe(z.array(z.string().uuid()).max(1000).optional()),
+});
+type CallFilters = z.infer<typeof CallQuery>;
+type CallRow = Record<string, unknown> & {
+  total_count?: number;
+  appointment?: { status?: string; starts_at?: string } | null;
+  cost?: string | number | null;
+};
+
+async function listCalls(db: Db, organizationId: string, q: CallFilters, page: { limit: number; offset: number }): Promise<CallRow[]> {
+  const s = searchTerms(q.q);
+  const { rows } = await db.query(
+    `select c.id, c.created_at, c.started_at, c.ended_at, c.duration_seconds, c.status, c.ended_reason, c.connected,
+            c.voicemail, c.transferred, c.dnc_requested, c.cost, c.recording_url, c.transcript, c.summary,
+            c.disposition_key, d.label as disposition_label, c.to_number, c.from_number, c.campaign_id, cp.name as campaign_name,
+            c.lead_id, l.first_name, l.last_name, l.email, l.company,
+            (select json_build_object('id', a.id, 'status', a.status, 'starts_at', a.starts_at, 'lead_time_zone', a.lead_time_zone)
+               from appointments a where a.call_id = c.id and a.status <> 'cancelled' order by a.created_at desc limit 1) as appointment,
+            count(*) over()::int as total_count
+       from calls c
+       left join leads l on l.id = c.lead_id
+       left join campaigns cp on cp.id = c.campaign_id
+       left join dispositions d on d.organization_id = c.organization_id and d.key = c.disposition_key
+      where c.organization_id = $1
+        and ($2::uuid is null or c.campaign_id = $2)
+        and ($3::text is null or c.disposition_key = $3)
+        and ($4::timestamptz is null or c.created_at >= $4)
+        and ($5::timestamptz is null or c.created_at < $5)
+        and ($10::uuid[] is null or c.id = any($10))
+        and ($6::text is null
+             or (coalesce(l.first_name,'') || ' ' || coalesce(l.last_name,'')) ilike $6 or l.email ilike $6
+             or ($7::text is not null and regexp_replace(c.to_number, '\\D', '', 'g') like '%' || $7 || '%'))
+      order by c.created_at desc limit $8 offset $9`,
+    [organizationId, q.campaign_id ?? null, q.disposition ?? null, q.from ?? null, q.to ?? null, s.text, s.digits, page.limit, page.offset, q.ids ?? null],
+  );
+  return rows;
+}
+
+const yesNo = (v: unknown) => (v ? 'yes' : 'no');
+const CALL_EXPORT_COLUMNS: ExportColumn<CallRow>[] = [
+  ['Call ID', (r) => r.id],
+  ['Created at', (r) => r.created_at],
+  ['Started at', (r) => r.started_at],
+  ['Ended at', (r) => r.ended_at],
+  ['Duration (s)', (r) => r.duration_seconds],
+  ['First name', (r) => r.first_name],
+  ['Last name', (r) => r.last_name],
+  ['Email', (r) => r.email],
+  ['Company', (r) => r.company],
+  ['To number', (r) => r.to_number],
+  ['From number', (r) => r.from_number],
+  ['Campaign', (r) => r.campaign_name],
+  ['Status', (r) => r.status],
+  ['Connected', (r) => yesNo(r.connected)],
+  ['Voicemail', (r) => yesNo(r.voicemail)],
+  ['Transferred', (r) => yesNo(r.transferred)],
+  ['Do not call requested', (r) => yesNo(r.dnc_requested)],
+  ['Ended reason', (r) => (typeof r.ended_reason === 'string' ? neutralize(r.ended_reason) : null)],
+  ['Disposition', (r) => r.disposition_label ?? r.disposition_key],
+  ['Appointment status', (r) => r.appointment?.status],
+  ['Appointment start (UTC)', (r) => r.appointment?.starts_at],
+  ['Cost (USD)', (r) => (r.cost == null ? null : Number(r.cost))],
+  ['Summary', (r) => r.summary],
+  ['Recording URL', (r) => r.recording_url],
+  ['Transcript', (r) => r.transcript],
+];
 
 export async function registerCallRoutes(app: FastifyInstance, deps: Deps) {
   const { db } = deps;
@@ -12,41 +97,31 @@ export async function registerCallRoutes(app: FastifyInstance, deps: Deps) {
   // Call detail records (CDR).
   app.get('/api/calls', { preHandler: [auth, requirePermission('calls.view')] }, async (req) => {
     const { organizationId } = authOf(req);
-    const q = z
-      .object({
-        campaign_id: z.string().uuid().optional(),
-        disposition: z.string().optional(),
-        q: z.string().optional(),
-        from: z.string().datetime({ offset: true }).optional(),
-        to: z.string().datetime({ offset: true }).optional(),
-        limit: z.coerce.number().int().min(1).max(200).default(50),
-        offset: z.coerce.number().int().min(0).default(0),
-      })
-      .parse(req.query);
-    const s = searchTerms(q.q);
-    const { rows } = await db.query(
-      `select c.id, c.created_at, c.started_at, c.ended_at, c.duration_seconds, c.status, c.ended_reason, c.connected,
-              c.disposition_key, d.label as disposition_label, c.to_number, c.from_number, c.campaign_id, cp.name as campaign_name,
-              c.lead_id, l.first_name, l.last_name, l.email,
-              (select json_build_object('id', a.id, 'status', a.status, 'starts_at', a.starts_at, 'lead_time_zone', a.lead_time_zone)
-                 from appointments a where a.call_id = c.id and a.status <> 'cancelled' order by a.created_at desc limit 1) as appointment,
-              count(*) over()::int as total_count
-         from calls c
-         left join leads l on l.id = c.lead_id
-         left join campaigns cp on cp.id = c.campaign_id
-         left join dispositions d on d.organization_id = c.organization_id and d.key = c.disposition_key
-        where c.organization_id = $1
-          and ($2::uuid is null or c.campaign_id = $2)
-          and ($3::text is null or c.disposition_key = $3)
-          and ($4::timestamptz is null or c.created_at >= $4)
-          and ($5::timestamptz is null or c.created_at < $5)
-          and ($6::text is null
-               or (coalesce(l.first_name,'') || ' ' || coalesce(l.last_name,'')) ilike $6 or l.email ilike $6
-               or ($7::text is not null and regexp_replace(c.to_number, '\\D', '', 'g') like '%' || $7 || '%'))
-        order by c.created_at desc limit $8 offset $9`,
-      [organizationId, q.campaign_id ?? null, q.disposition ?? null, q.from ?? null, q.to ?? null, s.text, s.digits, q.limit, q.offset],
+    const q = CallQuery.parse(req.query);
+    const rows = await listCalls(db, organizationId, q, { limit: q.limit, offset: q.offset });
+    return { rows: rows.map(({ total_count: _t, transcript: _tr, summary: _s, recording_url: _r, ...r }) => r), total: rows[0]?.total_count ?? 0 };
+  });
+
+  // CDR download with the same filters as the list: recordings, transcripts and summaries included.
+  app.get('/api/calls/export', { preHandler: [auth, requirePermission('calls.view')] }, async (req, reply) => {
+    const { organizationId } = authOf(req);
+    const q = CallQuery.extend({ format: z.enum(['csv', 'xlsx']).default('csv') }).parse(req.query);
+    const rows = await listCalls(db, organizationId, q, { limit: EXPORT_MAX_ROWS, offset: 0 });
+    return sendTableExport(reply, { format: q.format, name: 'call-records', sheet: 'Calls', columns: CALL_EXPORT_COLUMNS, rows, now: deps.clock.now() });
+  });
+
+  // Deletes finished call records (with their transcripts/events). Calls still in flight are kept.
+  app.post('/api/calls/bulk-delete', { preHandler: [auth, requirePermission('calls.manage')] }, async (req) => {
+    const { organizationId } = authOf(req);
+    const body = z.object({ ids: z.array(z.string().uuid()).min(1).max(5000) }).parse(req.body);
+    const { rowCount } = await db.query(
+      `delete from calls where organization_id = $1 and id = any($2::uuid[])
+          and (end_processed_at is not null or status in ('ended', 'failed') or created_at < now() - interval '2 hours')`,
+      [organizationId, body.ids],
     );
-    return { rows: rows.map(({ total_count: _t, ...r }) => r), total: rows[0]?.total_count ?? 0 };
+    const n = rowCount ?? 0;
+    const kept = body.ids.length - n;
+    return { affected: n, skipped: kept, message: `Deleted ${n} call record${n === 1 ? '' : 's'}${kept ? `; ${kept} still live or not found were kept` : ''}` };
   });
 
   app.get('/api/calls/:id', { preHandler: [auth, requirePermission('calls.view')] }, async (req) => {

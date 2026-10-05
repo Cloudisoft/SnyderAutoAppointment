@@ -3,10 +3,13 @@ import { z } from 'zod';
 import { withTx, type DbClient } from '../../db/pool';
 import type { Deps } from '../../deps';
 import { parseCsvObjects } from '../../lib/csv';
+import { neutralize } from '../../lib/http';
+import { sendTableExport, type ExportColumn } from '../../lib/tableExport';
 import { badRequest, notFound } from '../../lib/errors';
 import { digitsOnly, toE164 } from '../../lib/phone';
 import { authenticate, authOf, requirePermission } from '../../plugins/auth';
 import { isValidTimeZone } from '../org/routes';
+import { LeadBulkInput, runLeadBulk } from './bulk';
 
 const STANDARD_FIELDS: Record<string, string> = {
   first_name: 'first_name',
@@ -84,6 +87,37 @@ export async function registerLeadRoutes(app: FastifyInstance, deps: Deps) {
     return { ok: true };
   });
 
+  // Deletes several lists at once; with delete_leads the leads in them go too (except leads on a live call).
+  app.post('/api/lead-lists/bulk-delete', { preHandler: manage }, async (req) => {
+    const { organizationId } = authOf(req);
+    const body = z.object({ ids: z.array(z.string().uuid()).min(1).max(1000), delete_leads: z.boolean().default(false) }).parse(req.body);
+    return withTx(db, async (c) => {
+      let leadsDeleted = 0;
+      let leadsKept = 0;
+      if (body.delete_leads) {
+        const { rows } = await c.query<{ deleted: number; kept: number }>(
+          `with targets as (
+             select l.id, exists (select 1 from calls k where k.lead_id = l.id and k.end_processed_at is null
+                                    and k.created_at > now() - interval '2 hours') as busy
+               from leads l where l.organization_id = $1 and l.lead_list_id = any($2::uuid[])
+           ), del as (
+             delete from leads where id in (select id from targets where not busy) returning 1
+           )
+           select (select count(*) from del)::int as deleted, (select count(*) from targets where busy)::int as kept`,
+          [organizationId, body.ids],
+        );
+        leadsDeleted = rows[0]?.deleted ?? 0;
+        leadsKept = rows[0]?.kept ?? 0;
+      }
+      const { rowCount } = await c.query('delete from lead_lists where organization_id = $1 and id = any($2::uuid[])', [organizationId, body.ids]);
+      const lists = rowCount ?? 0;
+      const parts = [`Deleted ${lists} list${lists === 1 ? '' : 's'}`];
+      if (body.delete_leads) parts.push(`${leadsDeleted.toLocaleString()} leads deleted`);
+      if (leadsKept) parts.push(`${leadsKept} leads on a live call were kept`);
+      return { affected: lists, skipped: body.ids.length - lists, message: parts.join('; ') };
+    });
+  });
+
   // --- Custom field definitions --------------------------------------------
   app.get('/api/lead-fields', { preHandler: view }, async (req) => {
     const { organizationId } = authOf(req);
@@ -145,6 +179,86 @@ export async function registerLeadRoutes(app: FastifyInstance, deps: Deps) {
       [organizationId, q.list_id ?? null, q.status ?? null, s.text, s.digits, q.limit, q.offset],
     );
     return { rows: rows.map(({ total_count: _t, ...r }) => r), total: rows[0]?.total_count ?? 0 };
+  });
+
+  // Bulk actions on selected leads (or every lead matching the current filters).
+  app.post('/api/leads/bulk', { preHandler: manage }, async (req) => {
+    const { organizationId } = authOf(req);
+    return runLeadBulk(db, organizationId, LeadBulkInput.parse(req.body));
+  });
+
+  // Leads download with the list filters, custom fields as columns and each lead's latest call outcome.
+  app.get('/api/leads/export', { preHandler: view }, async (req, reply) => {
+    const { organizationId } = authOf(req);
+    const q = z
+      .object({
+        list_id: z.string().uuid().optional(),
+        status: z.string().optional(),
+        q: z.string().optional(),
+        format: z.enum(['csv', 'xlsx']).default('csv'),
+      })
+      .parse(req.query);
+    const s = searchTerms(q.q);
+    const [leads, fields] = await Promise.all([
+      db.query(
+        `select l.*, ll.name as list_name,
+                lc.created_at as last_call_at, lc.status as last_call_status, lc.duration_seconds as last_call_duration,
+                lc.ended_reason as last_call_ended_reason, coalesce(d.label, lc.disposition_key) as last_call_disposition,
+                lc.summary as last_call_summary, lc.recording_url as last_call_recording_url,
+                (select count(*)::int from calls c2 where c2.lead_id = l.id) as call_count,
+                (select a.starts_at from appointments a where a.lead_id = l.id and a.status <> 'cancelled' order by a.created_at desc limit 1) as appointment_starts_at,
+                (select a.status from appointments a where a.lead_id = l.id and a.status <> 'cancelled' order by a.created_at desc limit 1) as appointment_status
+           from leads l
+           left join lead_lists ll on ll.id = l.lead_list_id
+           left join lateral (
+             select c.* from calls c where c.lead_id = l.id order by c.created_at desc limit 1
+           ) lc on true
+           left join dispositions d on d.organization_id = l.organization_id and d.key = lc.disposition_key
+          where l.organization_id = $1
+            and ($2::uuid is null or l.lead_list_id = $2)
+            and ($3::text is null or l.status = $3)
+            and ($4::text is null
+                 or (coalesce(l.first_name, '') || ' ' || coalesce(l.last_name, '')) ilike $4
+                 or l.email ilike $4
+                 or ($5::text is not null and l.phone_digits like '%' || $5 || '%'))
+          order by l.created_at desc
+          limit 50000`,
+        [organizationId, q.list_id ?? null, q.status ?? null, s.text, s.digits],
+      ),
+      db.query<{ key: string; label: string }>(
+        'select key, label from lead_custom_field_defs where organization_id = $1 order by label',
+        [organizationId],
+      ),
+    ]);
+    type Row = Record<string, unknown> & { custom_fields?: Record<string, unknown> };
+    const known = new Set(fields.rows.map((f) => f.key));
+    // Custom keys present on leads but not defined as fields still get a column.
+    const extraKeys = [...new Set(leads.rows.flatMap((r: Row) => Object.keys(r.custom_fields ?? {})))].filter((k) => !known.has(k)).sort();
+    const columns: ExportColumn<Row>[] = [
+      ['Lead ID', (r) => r.id],
+      ['First name', (r) => r.first_name],
+      ['Last name', (r) => r.last_name],
+      ['Email', (r) => r.email],
+      ['Phone', (r) => r.phone_e164],
+      ['Company', (r) => r.company],
+      ['Time zone', (r) => r.time_zone],
+      ['List', (r) => r.list_name],
+      ['Status', (r) => r.status],
+      ...fields.rows.map((f): ExportColumn<Row> => [f.label, (r) => r.custom_fields?.[f.key]]),
+      ...extraKeys.map((k): ExportColumn<Row> => [k, (r) => r.custom_fields?.[k]]),
+      ['Calls made', (r) => r.call_count],
+      ['Last call at', (r) => r.last_call_at],
+      ['Last call status', (r) => r.last_call_status],
+      ['Last call duration (s)', (r) => r.last_call_duration],
+      ['Last call ended reason', (r) => (typeof r.last_call_ended_reason === 'string' ? neutralize(r.last_call_ended_reason) : null)],
+      ['Last disposition', (r) => r.last_call_disposition ?? r.last_disposition],
+      ['Last call summary', (r) => r.last_call_summary],
+      ['Last call recording URL', (r) => r.last_call_recording_url],
+      ['Appointment status', (r) => r.appointment_status],
+      ['Appointment start (UTC)', (r) => r.appointment_starts_at],
+      ['Created at', (r) => r.created_at],
+    ];
+    return sendTableExport(reply, { format: q.format, name: 'leads', sheet: 'Leads', columns, rows: leads.rows, now: deps.clock.now() });
   });
 
   app.get('/api/leads/:id', { preHandler: view }, async (req) => {

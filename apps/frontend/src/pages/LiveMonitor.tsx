@@ -46,7 +46,7 @@ export function LiveMonitorPage() {
 function LiveTranscript({ callId }: { callId: string }) {
   const qc = useQueryClient();
   const key = ['monitor-events', callId];
-  const events = useQuery({ queryKey: key, queryFn: () => api.get<CallEvent[]>(`/api/monitor/calls/${callId}/events`), refetchInterval: 10_000 });
+  const events = useQuery({ queryKey: key, queryFn: () => api.get<CallEvent[]>(`/api/monitor/calls/${callId}/events`), refetchInterval: 3_000 });
   useEffect(() => {
     // Realtime push of new events (RLS applies to the anon-key client).
     const channel = supabase

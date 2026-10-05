@@ -1,7 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { AGENT_MODELS, DEFAULT_AGENT_MODEL } from '@snyder/shared';
 import type { Deps } from '../../deps';
 import { notFound } from '../../lib/errors';
+import { toE164 } from '../../lib/phone';
 import { authenticate, authOf, requirePermission } from '../../plugins/auth';
 
 const AgentInput = z.object({
@@ -9,9 +11,25 @@ const AgentInput = z.object({
   voice_id: z.string().uuid().nullable().optional(),
   system_prompt: z.string().max(20_000).default(''),
   first_message: z.string().max(1_000).default(''),
-  model: z.string().default('gpt-4o'),
+  model: z
+    .string()
+    .default(DEFAULT_AGENT_MODEL)
+    .refine((m) => AGENT_MODELS.some((o) => o.id === m), { message: 'Pick one of the supported models' }),
   temperature: z.number().min(0).max(2).default(0.5),
-  transfer_number: z.string().max(30).nullable().optional(),
+  transfer_number: z
+    .string()
+    .max(30)
+    .nullable()
+    .optional()
+    .transform((v, ctx) => {
+      if (!v || !v.trim()) return null;
+      const e164 = toE164(v);
+      if (!e164) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Transfer number is not a valid phone number' });
+        return z.NEVER;
+      }
+      return e164;
+    }),
   end_call_message: z.string().max(500).nullable().optional(),
   knowledge_base_id: z.string().uuid().nullable().optional(),
 });

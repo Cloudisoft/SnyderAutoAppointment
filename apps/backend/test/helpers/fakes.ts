@@ -3,7 +3,7 @@ import type { CartesiaClient } from '../../src/integrations/cartesia';
 import type { Mailer, OutgoingEmail, SmtpSettings } from '../../src/integrations/mailer';
 import type { CallExtraction, OpenAiClient } from '../../src/integrations/openai';
 import type { TwilioClient } from '../../src/integrations/twilio';
-import type { VapiCall, VapiCallRequest, VapiClient } from '../../src/integrations/vapi';
+import type { VapiAssistant, VapiCall, VapiCallRequest, VapiClient } from '../../src/integrations/vapi';
 import { UpstreamError } from '../../src/lib/http';
 
 export class FakeVapi implements VapiClient {
@@ -38,6 +38,22 @@ export class FakeVapi implements VapiClient {
     return { id: `pn_${randomUUID()}` };
   }
   async deletePhoneNumber() {}
+  createdAssistants: VapiAssistant[] = [];
+  deletedAssistants: string[] = [];
+  /** When set, createAssistant rejects with this Vapi validation message. */
+  rejectAssistant: string | null = null;
+  async createAssistant(a: VapiAssistant) {
+    if (this.rejectAssistant) throw new UpstreamError('Vapi', 400, JSON.stringify({ message: [this.rejectAssistant] }));
+    this.createdAssistants.push(a);
+    return { id: `asst_${randomUUID()}` };
+  }
+  async deleteAssistant(id: string) {
+    this.deletedAssistants.push(id);
+  }
+  pingError: Error | null = null;
+  async ping() {
+    if (this.pingError) throw this.pingError;
+  }
 }
 
 export const fakeCartesia: CartesiaClient = {

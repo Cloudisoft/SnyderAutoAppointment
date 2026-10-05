@@ -5,6 +5,7 @@ import { cx, PageHeader } from '../../components/ui';
 export const SETTINGS_NAV = [
   { to: 'organization', label: 'Organization', permission: 'org.manage' },
   { to: 'users', label: 'Users & roles', permission: 'users.manage' },
+  { to: 'connections', label: 'Connections', permission: 'settings.manage' },
   { to: 'email', label: 'Email (SMTP)', permission: 'settings.manage' },
   { to: 'voices', label: 'Voices', permission: 'settings.manage' },
   { to: 'numbers', label: 'Phone numbers', permission: 'settings.manage' },
@@ -22,7 +23,7 @@ export function SettingsLayout() {
       <div className="grid gap-6 md:grid-cols-[200px_1fr]">
         <nav className="flex md:flex-col gap-1 overflow-x-auto">
           {items.map((i) => (
-            <NavLink key={i.to} to={i.to} className={({ isActive }) => cx('rounded-md px-3 py-2 text-sm whitespace-nowrap', isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted hover:text-fg hover:bg-surface-2')}>
+            <NavLink key={i.to} to={i.to} className={({ isActive }) => cx('rounded-lg px-3 py-2 text-sm whitespace-nowrap transition-all duration-200', isActive ? 'bg-primary-soft text-primary font-semibold' : 'text-muted hover:translate-x-0.5 hover:text-fg hover:bg-surface-2')}>
               {i.label}
             </NavLink>
           ))}

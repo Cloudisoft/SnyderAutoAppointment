@@ -15,6 +15,7 @@ import { registerTelephonyRoutes } from './modules/telephony/routes';
 import { registerAgentRoutes } from './modules/agents/routes';
 import { registerCampaignRoutes } from './modules/campaigns/routes';
 import { registerNotificationRoutes } from './modules/org/notifications';
+import { registerHealthRoutes } from './modules/health/routes';
 import { registerOrgRoutes } from './modules/org/routes';
 import { registerSmtpRoutes } from './modules/org/smtpRoutes';
 import { registerErrorHandler } from './plugins/errors';
@@ -43,6 +44,7 @@ export async function buildApp(deps: Deps, pipeline: CallPipeline = defaultCallP
   await registerCallRoutes(app, deps);
   await registerAnalyticsRoutes(app, deps);
   await registerVapiWebhook(app, deps, pipeline);
+  await registerHealthRoutes(app, deps, pipeline);
   await registerTwilioSmsWebhook(app, deps);
   await registerPublicAppointmentRoutes(app, deps);
   await registerAppointmentRoutes(app, deps);

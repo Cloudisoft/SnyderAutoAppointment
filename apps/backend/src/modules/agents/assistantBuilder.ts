@@ -1,4 +1,4 @@
-import type { CampaignSnapshot } from '@snyder/shared';
+import { providerForModel, type CampaignSnapshot } from '@snyder/shared';
 import type { Config } from '../../config';
 import type { VapiAssistant, VapiFunctionTool, VapiTool } from '../../integrations/vapi';
 import { leadVars, renderTemplate, type TemplateVars } from '../../lib/templates';
@@ -102,7 +102,7 @@ export function buildAssistant(input: BuildAssistantInput): VapiAssistant {
     firstMessage: renderTemplate(agent.first_message, vars) || undefined,
     firstMessageMode: 'assistant-speaks-first',
     model: {
-      provider: 'openai',
+      provider: providerForModel(agent.model),
       model: agent.model,
       temperature: agent.temperature,
       messages: [{ role: 'system', content: sections.join('\n\n') }],
@@ -112,11 +112,12 @@ export function buildAssistant(input: BuildAssistantInput): VapiAssistant {
     voice: { provider: 'cartesia', voiceId: agent.voice.voice_id, model: agent.voice.model, language: agent.voice.language },
     transcriber: { provider: 'deepgram', model: 'nova-3', language: agent.voice.language },
     server: { url: serverUrl(config), secret: config.VAPI_WEBHOOK_SECRET, timeoutSeconds: 20 },
-    serverMessages: ['status-update', 'end-of-call-report', 'transcript', 'tool-calls', 'hang'],
+    serverMessages: ['status-update', 'end-of-call-report', 'transcript', 'tool-calls', 'transfer-update', 'hang'],
     voicemailDetection: { provider: 'vapi' },
     ...(agent.end_call_message ? { endCallMessage: renderTemplate(agent.end_call_message, vars) } : {}),
     maxDurationSeconds: 900,
     analysisPlan: { summaryPlan: { enabled: true } },
+    artifactPlan: { recordingEnabled: true, transcriptPlan: { enabled: true } },
     metadata: { callId: input.callId, organizationId: input.organizationId },
   };
 }

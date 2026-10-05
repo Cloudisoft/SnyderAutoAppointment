@@ -5,7 +5,8 @@ import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { Badge, Button, Card, Drawer, EmptyState, ErrorText, Field, Input, Modal, PageHeader, Select, SkeletonRows, Table, Tabs, Td, Textarea, cx, type BadgeTone } from '../components/ui';
-import { api, downloadFile } from '../lib/api';
+import { ExportButtons } from '../components/ExportButtons';
+import { api } from '../lib/api';
 import { titleCase } from '../lib/format';
 import type { Host } from './settings/AppointmentSettings';
 
@@ -89,10 +90,7 @@ export function AppointmentsPage() {
         title="Appointments"
         description={list.data ? `${list.data.total} appointments` : undefined}
         actions={
-          <>
-            <Button size="sm" onClick={() => void downloadFile(`/api/appointments/export?format=csv&${exportQs}`, 'appointments.csv')}>Export CSV</Button>
-            <Button size="sm" onClick={() => void downloadFile(`/api/appointments/export?format=xlsx&${exportQs}`, 'appointments.xlsx')}>Export XLSX</Button>
-          </>
+          <ExportButtons path="/api/appointments/export" query={exportQs} name="appointments" />
         }
       />
       {emailHealth.data && (emailHealth.data.waiting > 0 || emailHealth.data.failed > 0) && (

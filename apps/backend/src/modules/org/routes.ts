@@ -132,6 +132,24 @@ export async function registerOrgRoutes(app: FastifyInstance, deps: Deps) {
     },
   );
 
+  // Getting-started checklist for the dashboard: which setup steps are done.
+  app.get('/api/setup-status', { preHandler: [auth] }, async (req) => {
+    const { organizationId } = authOf(req);
+    const { rows } = await db.query(
+      `select
+         exists (select 1 from voices where organization_id = $1 and is_active) as voice,
+         exists (select 1 from phone_numbers where organization_id = $1 and is_active) as phone_number,
+         exists (select 1 from agents where organization_id = $1 and voice_id is not null) as agent,
+         exists (select 1 from leads where organization_id = $1) as leads,
+         exists (select 1 from organization_smtp_settings where organization_id = $1) as email,
+         exists (select 1 from appointment_types where organization_id = $1 and is_active) as appointment_type,
+         exists (select 1 from campaigns where organization_id = $1 and status = 'active') as campaign,
+         exists (select 1 from calls where organization_id = $1) as first_call`,
+      [organizationId],
+    );
+    return rows[0];
+  });
+
   app.get('/api/organization/roles', { preHandler: [auth] }, async (req) => {
     const { organizationId } = authOf(req);
     const [roles, permissions] = await Promise.all([

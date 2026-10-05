@@ -28,3 +28,10 @@ export function formatDuration(seconds: number | null | undefined) {
 export function titleCase(s: string) {
   return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+/** Readable call end reason without vendor names, e.g. "customer-ended-call" -> "Customer ended call". */
+export function formatEndedReason(reason: string | null | undefined): string {
+  if (!reason) return '—';
+  const text = reason.replace(/vapi/gi, 'platform').replace(/cartesia/gi, 'voice').replace(/[.\-_]+/g, ' ').trim();
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}

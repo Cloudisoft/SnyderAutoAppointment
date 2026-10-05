@@ -35,6 +35,21 @@ See [docs/auto-appointments.md](docs/auto-appointments.md) for the booking flow,
 the test map. Migration `0009_appointments.sql` adds the data model; new env vars are documented
 in `.env.example` under "Auto Appointments".
 
+## Calls: model, voice, recording
+
+- Agents default to **Claude Haiku 4.5** (Vapi model id `claude-haiku-4-5-20251001`, provider `anthropic`). GPT models are still selectable; the provider is picked from the model id (`packages/shared/src/models.ts`).
+- Voices are Cartesia `sonic-3`. Every call has `artifactPlan.recordingEnabled`, so recordings and transcripts land in Call records.
+- Live transfers use Vapi's `transferCall` tool (agent → "Live transfer number"). `transfer-update` events flag the call and show in the Live monitor.
+- **Settings → Connections** runs live checks of Vapi, Cartesia, Twilio and SMTP with the server's keys.
+- **Campaign → Test call setup** sends the campaign's exact assistant config to Vapi (create + delete a temporary assistant, no call placed) and shows what Vapi accepted or rejected.
+
+## Bulk actions and exports
+
+- Leads: select rows (or "select all N matching") → move to list, remove from list, add to / remove from campaign, set status, delete. Leads on a live call are never deleted.
+- Lists, voices, call records, DNC and email suppressions have checkbox selection with bulk actions. Deleting call records needs the `calls.manage` permission (owners and admins).
+- CSV / Excel downloads: leads (with custom fields and latest call outcome), call records (with recording URL, transcript and summary) and appointments, all respecting the current filters or selection.
+- Every failed request shows a toast; nothing fails silently.
+
 ## Background jobs
 
 Jobs run in the API process when `JOBS_ENABLED=true` (each guarded by a Postgres advisory lock so

@@ -1,3 +1,4 @@
+import { HttpError } from '../lib/errors';
 import { fetchJson, UpstreamError } from '../lib/http';
 
 const VAPI_BASE = 'https://api.vapi.ai';
@@ -26,7 +27,7 @@ export interface VapiAssistant {
   firstMessage?: string;
   firstMessageMode?: 'assistant-speaks-first' | 'assistant-waits-for-user';
   model: {
-    provider: 'openai';
+    provider: 'openai' | 'anthropic';
     model: string;
     temperature?: number;
     messages: { role: 'system'; content: string }[];
@@ -41,6 +42,7 @@ export interface VapiAssistant {
   endCallMessage?: string;
   maxDurationSeconds?: number;
   analysisPlan?: { summaryPlan?: { enabled: boolean } };
+  artifactPlan?: { recordingEnabled?: boolean; transcriptPlan?: { enabled: boolean } };
   metadata?: Record<string, string>;
 }
 
@@ -87,6 +89,11 @@ export interface VapiClient {
     serverSecret: string;
   }): Promise<{ id: string }>;
   deletePhoneNumber(id: string): Promise<void>;
+  /** Creates a saved assistant (used only to validate a config; delete it right after). */
+  createAssistant(assistant: VapiAssistant): Promise<{ id: string }>;
+  deleteAssistant(id: string): Promise<void>;
+  /** Cheap authenticated read to confirm the API key works. */
+  ping(): Promise<void>;
 }
 
 /** True when Vapi rejected the request payload (as opposed to auth/outage errors). */
@@ -96,7 +103,7 @@ export function isVapiValidationError(err: unknown): boolean {
 
 export function createVapiClient(apiKey: string): VapiClient {
   const headers = () => {
-    if (!apiKey) throw new Error('VAPI_API_KEY is not configured');
+    if (!apiKey) throw new HttpError(503, 'The calling service is not configured on the server (missing API key)', 'not_configured');
     return { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' };
   };
   return {
@@ -116,6 +123,14 @@ export function createVapiClient(apiKey: string): VapiClient {
           server: { url: o.serverUrl, secret: o.serverSecret },
         }),
       }),
+    createAssistant: (assistant) =>
+      fetchJson('Vapi', `${VAPI_BASE}/assistant`, { method: 'POST', headers: headers(), body: JSON.stringify(assistant) }),
+    async deleteAssistant(id) {
+      await fetchJson('Vapi', `${VAPI_BASE}/assistant/${encodeURIComponent(id)}`, { method: 'DELETE', headers: headers() });
+    },
+    async ping() {
+      await fetchJson('Vapi', `${VAPI_BASE}/phone-number?limit=1`, { headers: headers() });
+    },
     async deletePhoneNumber(id) {
       await fetchJson('Vapi', `${VAPI_BASE}/phone-number/${encodeURIComponent(id)}`, {
         method: 'DELETE',

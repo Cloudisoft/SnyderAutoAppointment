@@ -58,7 +58,7 @@ export async function processCallEnded(
          ended_reason = $3, started_at = coalesce($4::timestamptz, started_at), ended_at = coalesce($5::timestamptz, now()),
          duration_seconds = $6, recording_url = coalesce($7, recording_url), transcript = coalesce($8, transcript),
          summary = coalesce($9, summary), analysis = analysis || jsonb_build_object('structured', $10::jsonb),
-         cost = coalesce($11, cost), connected = $12, voicemail = $13, transferred = $14,
+         cost = coalesce($11, cost), connected = $12, voicemail = $13, transferred = transferred or $14,
          end_processed_at = now()
        where id = $1`,
       [

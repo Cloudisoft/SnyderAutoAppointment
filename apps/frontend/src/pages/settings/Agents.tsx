@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Button, Card, ErrorText, Field, Input, Modal, Select, Table, Td, Textarea } from '../../components/ui';
+import { AGENT_MODELS, DEFAULT_AGENT_MODEL } from '@snyder/shared';
 import { api } from '../../lib/api';
+import { toast } from '../../lib/toast';
 import type { Voice } from './Voices';
 
 export interface Agent {
@@ -17,7 +19,7 @@ export interface Agent {
   end_call_message: string | null;
   knowledge_base_id: string | null;
 }
-const blank: Omit<Agent, 'id'> = { name: '', voice_id: null, system_prompt: '', first_message: '', model: 'gpt-4o', temperature: 0.5, transfer_number: null, end_call_message: null, knowledge_base_id: null };
+const blank: Omit<Agent, 'id'> = { name: '', voice_id: null, system_prompt: '', first_message: '', model: DEFAULT_AGENT_MODEL, temperature: 0.5, transfer_number: null, end_call_message: null, knowledge_base_id: null };
 
 export function AgentsSettings() {
   const qc = useQueryClient();
@@ -32,8 +34,9 @@ export function AgentsSettings() {
       const { id, voice_name: _v, ...body } = a as Agent;
       return id ? api.put(`/api/agents/${id}`, body) : api.post('/api/agents', body);
     },
-    onSuccess: () => { setEditing(null); qc.invalidateQueries({ queryKey: ['agents'] }); },
+    onSuccess: () => { setEditing(null); toast.success('Agent saved'); qc.invalidateQueries({ queryKey: ['agents'] }); },
   });
+  const modelLabel = (id: string) => AGENT_MODELS.find((m) => m.id === id)?.label ?? id;
   const addKb = useMutation({ mutationFn: () => api.post('/api/knowledge-bases', kb), onSuccess: () => { setKbOpen(false); qc.invalidateQueries({ queryKey: ['kbs'] }); } });
   const set = <K extends keyof Agent>(k: K, v: Agent[K]) => editing && setEditing({ ...editing, [k]: v });
 
@@ -45,7 +48,7 @@ export function AgentsSettings() {
             <tr key={a.id}>
               <Td className="font-medium">{a.name}</Td>
               <Td>{a.voice_name ?? '—'}</Td>
-              <Td>{a.model}</Td>
+              <Td>{modelLabel(a.model)}</Td>
               <Td className="text-right"><Button size="sm" variant="ghost" onClick={() => setEditing({ ...a, temperature: Number(a.temperature) })}>Edit</Button></Td>
             </tr>
           ))}
@@ -58,7 +61,7 @@ export function AgentsSettings() {
         {editing && (
           <>
             <Field label="Name"><Input value={editing.name} onChange={(e) => set('name', e.target.value)} /></Field>
-            <Field label="Cartesia voice" hint="The voice name becomes {{agent_name}}.">
+            <Field label="Voice" hint="The voice name becomes {{agent_name}}.">
               <Select value={editing.voice_id ?? ''} onChange={(e) => set('voice_id', e.target.value || null)}>
                 <option value="">Choose a voice</option>
                 {(voices.data ?? []).filter((v) => v.is_active).map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
@@ -69,10 +72,15 @@ export function AgentsSettings() {
               <Textarea rows={10} value={editing.system_prompt} onChange={(e) => set('system_prompt', e.target.value)} />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Model"><Input value={editing.model} onChange={(e) => set('model', e.target.value)} /></Field>
+              <Field label="AI model" hint={AGENT_MODELS.find((m) => m.id === editing.model)?.hint}>
+                <Select value={editing.model} onChange={(e) => set('model', e.target.value)}>
+                  {!AGENT_MODELS.some((m) => m.id === editing.model) && <option value={editing.model}>{editing.model} (no longer supported)</option>}
+                  {AGENT_MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                </Select>
+              </Field>
               <Field label="Temperature"><Input type="number" step="0.1" min={0} max={2} value={editing.temperature} onChange={(e) => set('temperature', Number(e.target.value))} /></Field>
             </div>
-            <Field label="Transfer number (optional)"><Input value={editing.transfer_number ?? ''} onChange={(e) => set('transfer_number', e.target.value || null)} /></Field>
+            <Field label="Live transfer number (optional)" hint="When the person asks for a human, the agent warm-transfers the call here."><Input type="tel" value={editing.transfer_number ?? ''} onChange={(e) => set('transfer_number', e.target.value || null)} placeholder="+1 555 123 4567" /></Field>
             <Field label="Knowledge base">
               <Select value={editing.knowledge_base_id ?? ''} onChange={(e) => set('knowledge_base_id', e.target.value || null)}>
                 <option value="">None</option>
@@ -85,7 +93,7 @@ export function AgentsSettings() {
       </Modal>
       <Modal open={kbOpen} onClose={() => setKbOpen(false)} title="Add knowledge base" footer={<Button variant="primary" loading={addKb.isPending} onClick={() => addKb.mutate()}>Add</Button>}>
         <Field label="Name"><Input value={kb.name} onChange={(e) => setKb({ ...kb, name: e.target.value })} /></Field>
-        <Field label="Vapi query tool ID"><Input value={kb.vapi_tool_id} onChange={(e) => setKb({ ...kb, vapi_tool_id: e.target.value })} /></Field>
+        <Field label="Knowledge base tool ID"><Input value={kb.vapi_tool_id} onChange={(e) => setKb({ ...kb, vapi_tool_id: e.target.value })} /></Field>
         <ErrorText error={addKb.error} />
       </Modal>
     </div>
