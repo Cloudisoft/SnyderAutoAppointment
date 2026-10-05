@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { AppShell } from './components/AppShell';
 import { EmptyState, Spinner } from './components/ui';
 import { applyTheme } from './lib/theme';
+import { LeadsPage } from './pages/Leads';
 import { LoginPage } from './pages/Login';
 import { OnboardingPage } from './pages/Onboarding';
 import { OrganizationSettings } from './pages/settings/OrganizationSettings';
@@ -52,6 +53,7 @@ export function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route element={<RequireAuth><AppShell /></RequireAuth>}>
               <Route index element={<EmptyState title="Dashboard coming soon" />} />
+              <Route path="leads" element={<RequirePermission permission="leads.view"><LeadsPage /></RequirePermission>} />
               <Route path="settings" element={<SettingsLayout />}>
                 <Route index element={<SettingsIndex />} />
                 <Route path="organization" element={<RequirePermission permission="org.manage"><OrganizationSettings /></RequirePermission>} />

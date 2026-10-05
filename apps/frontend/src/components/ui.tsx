@@ -182,7 +182,7 @@ export function Drawer({ open, onClose, title, children }: { open: boolean; onCl
   );
 }
 
-export function Tabs<T extends string>({ value, onChange, tabs }: { value: T; onChange(v: T): void; tabs: { value: T; label: string }[] }) {
+export function Tabs<T extends string>({ value, onChange, tabs }: { value: T; onChange: (v: NoInfer<T>) => void; tabs: { value: NoInfer<T>; label: string }[] }) {
   return (
     <div className="flex gap-1 overflow-x-auto border-b border-border mb-4">
       {tabs.map((t) => (
