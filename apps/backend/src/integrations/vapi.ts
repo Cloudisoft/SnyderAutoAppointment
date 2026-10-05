@@ -110,19 +110,42 @@ export function createVapiClient(apiKey: string): VapiClient {
     createCall: (req) =>
       fetchJson('Vapi', `${VAPI_BASE}/call`, { method: 'POST', headers: headers(), body: JSON.stringify(req) }),
     getCall: (id) => fetchJson('Vapi', `${VAPI_BASE}/call/${encodeURIComponent(id)}`, { headers: headers() }),
-    importTwilioNumber: (o) =>
-      fetchJson('Vapi', `${VAPI_BASE}/phone-number`, {
-        method: 'POST',
-        headers: headers(),
-        body: JSON.stringify({
-          provider: 'twilio',
-          number: o.number,
-          twilioAccountSid: o.twilioAccountSid,
-          twilioAuthToken: o.twilioAuthToken,
-          name: o.name,
-          server: { url: o.serverUrl, secret: o.serverSecret },
-        }),
-      }),
+    async importTwilioNumber(o) {
+      const payload = {
+        provider: 'twilio',
+        number: o.number,
+        twilioAccountSid: o.twilioAccountSid,
+        twilioAuthToken: o.twilioAuthToken,
+        name: o.name,
+        server: { url: o.serverUrl, secret: o.serverSecret },
+      };
+      try {
+        return await fetchJson<{ id: string }>('Vapi', `${VAPI_BASE}/phone-number`, { method: 'POST', headers: headers(), body: JSON.stringify(payload) });
+      } catch (err) {
+        if (!(err instanceof UpstreamError) || err.status !== 400) throw err;
+        if (/another org/i.test(err.body)) {
+          throw new HttpError(
+            409,
+            `${o.number} is already connected to a different calling account. Remove it from that account first, or import a different number.`,
+            'number_in_use',
+          );
+        }
+        // Already imported into this account earlier (e.g. a previous attempt): reuse it and point it at our server.
+        const existingId =
+          /Existing Phone Number ([0-9a-f-]{36})/i.exec(err.body)?.[1] ??
+          (await fetchJson<{ id: string; number?: string }[]>('Vapi', `${VAPI_BASE}/phone-number?limit=1000`, { headers: headers() })).find(
+            (n) => n.number === o.number,
+          )?.id;
+        if (!existingId) throw err;
+        const { provider: _p, number: _n, ...update } = payload;
+        await fetchJson('Vapi', `${VAPI_BASE}/phone-number/${encodeURIComponent(existingId)}`, {
+          method: 'PATCH',
+          headers: headers(),
+          body: JSON.stringify(update),
+        });
+        return { id: existingId };
+      }
+    },
     createAssistant: (assistant) =>
       fetchJson('Vapi', `${VAPI_BASE}/assistant`, { method: 'POST', headers: headers(), body: JSON.stringify(assistant) }),
     async deleteAssistant(id) {
