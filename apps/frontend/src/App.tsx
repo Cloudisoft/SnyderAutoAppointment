@@ -5,7 +5,10 @@ import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { AppShell } from './components/AppShell';
 import { EmptyState, Spinner } from './components/ui';
 import { applyTheme } from './lib/theme';
+import { CampaignEditorPage } from './pages/CampaignEditor';
+import { CampaignsPage } from './pages/Campaigns';
 import { LeadsPage } from './pages/Leads';
+import { AgentsSettings } from './pages/settings/Agents';
 import { LoginPage } from './pages/Login';
 import { OnboardingPage } from './pages/Onboarding';
 import { OrganizationSettings } from './pages/settings/OrganizationSettings';
@@ -55,6 +58,8 @@ export function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route element={<RequireAuth><AppShell /></RequireAuth>}>
               <Route index element={<EmptyState title="Dashboard coming soon" />} />
+              <Route path="campaigns" element={<RequirePermission permission="campaigns.view"><CampaignsPage /></RequirePermission>} />
+              <Route path="campaigns/:id" element={<RequirePermission permission="campaigns.view"><CampaignEditorPage /></RequirePermission>} />
               <Route path="leads" element={<RequirePermission permission="leads.view"><LeadsPage /></RequirePermission>} />
               <Route path="settings" element={<SettingsLayout />}>
                 <Route index element={<SettingsIndex />} />
@@ -62,6 +67,7 @@ export function App() {
                 <Route path="users" element={<RequirePermission permission="users.manage"><UsersRoles /></RequirePermission>} />
                 <Route path="voices" element={<RequirePermission permission="settings.manage"><VoicesSettings /></RequirePermission>} />
                 <Route path="numbers" element={<RequirePermission permission="settings.manage"><PhoneNumbersSettings /></RequirePermission>} />
+                <Route path="agents" element={<RequirePermission permission="settings.manage"><AgentsSettings /></RequirePermission>} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

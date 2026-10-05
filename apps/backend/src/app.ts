@@ -3,6 +3,8 @@ import Fastify, { type FastifyBaseLogger } from 'fastify';
 import type { Deps } from './deps';
 import { registerLeadRoutes } from './modules/leads/routes';
 import { registerTelephonyRoutes } from './modules/telephony/routes';
+import { registerAgentRoutes } from './modules/agents/routes';
+import { registerCampaignRoutes } from './modules/campaigns/routes';
 import { registerNotificationRoutes } from './modules/org/notifications';
 import { registerOrgRoutes } from './modules/org/routes';
 import { registerErrorHandler } from './plugins/errors';
@@ -24,6 +26,8 @@ export async function buildApp(deps: Deps) {
   await registerNotificationRoutes(app, deps);
   await registerLeadRoutes(app, deps);
   await registerTelephonyRoutes(app, deps);
+  await registerAgentRoutes(app, deps);
+  await registerCampaignRoutes(app, deps);
 
   return app;
 }
