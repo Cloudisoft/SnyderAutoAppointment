@@ -1,6 +1,9 @@
 import { buildApp } from './app';
 import { loadConfig } from './config';
 import { createPool } from './db/pool';
+import { createCartesiaClient } from './integrations/cartesia';
+import { createTwilioClient } from './integrations/twilio';
+import { createVapiClient } from './integrations/vapi';
 import {
   createSupabaseAdmin,
   createSupabaseAuthVerifier,
@@ -23,6 +26,9 @@ const deps: Deps = {
   clock: systemClock,
   auth: createSupabaseAuthVerifier(supabase),
   supabaseAdmin: createSupabaseAdmin(supabase),
+  vapi: createVapiClient(config.VAPI_API_KEY),
+  cartesia: createCartesiaClient(config.CARTESIA_API_KEY),
+  twilio: createTwilioClient(),
 };
 const app = await buildApp(deps);
 

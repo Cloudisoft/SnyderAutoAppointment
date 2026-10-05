@@ -11,6 +11,8 @@ import { OnboardingPage } from './pages/Onboarding';
 import { OrganizationSettings } from './pages/settings/OrganizationSettings';
 import { SETTINGS_NAV, SettingsLayout } from './pages/settings/SettingsLayout';
 import { UsersRoles } from './pages/settings/UsersRoles';
+import { VoicesSettings } from './pages/settings/Voices';
+import { PhoneNumbersSettings } from './pages/settings/PhoneNumbers';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 15_000, retry: 1, refetchOnWindowFocus: false } },
@@ -58,6 +60,8 @@ export function App() {
                 <Route index element={<SettingsIndex />} />
                 <Route path="organization" element={<RequirePermission permission="org.manage"><OrganizationSettings /></RequirePermission>} />
                 <Route path="users" element={<RequirePermission permission="users.manage"><UsersRoles /></RequirePermission>} />
+                <Route path="voices" element={<RequirePermission permission="settings.manage"><VoicesSettings /></RequirePermission>} />
+                <Route path="numbers" element={<RequirePermission permission="settings.manage"><PhoneNumbersSettings /></RequirePermission>} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
