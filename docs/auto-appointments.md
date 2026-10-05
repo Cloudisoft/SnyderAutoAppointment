@@ -32,6 +32,13 @@ Transcript fallback: if a connected call has no appointment but the OpenAI post-
 finds an agreed time, a `needs_review` appointment is created (no email) and supervisors are
 notified in-app; confirming it from the Appointments page sends the email.
 
+## Email delivery
+
+Each organization configures its own SMTP server in **Settings → Email (SMTP)** (admins with
+`settings.manage`). The password is stored in Supabase Vault, a test send records the real SMTP
+error, and transports are cached until the settings change. The `SMTP_*` env vars are an optional
+platform fallback. Emails queued before SMTP works keep retrying with backoff.
+
 ## Design notes
 
 - **Tokens.** The brief asks for one token generated at finalization with only its hash stored.

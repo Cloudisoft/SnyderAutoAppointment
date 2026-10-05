@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { CartesiaClient } from '../../src/integrations/cartesia';
-import type { Mailer, OutgoingEmail } from '../../src/integrations/mailer';
+import type { Mailer, OutgoingEmail, SmtpSettings } from '../../src/integrations/mailer';
 import type { CallExtraction, OpenAiClient } from '../../src/integrations/openai';
 import type { TwilioClient } from '../../src/integrations/twilio';
 import type { VapiCall, VapiCallRequest, VapiClient } from '../../src/integrations/vapi';
@@ -72,6 +72,15 @@ export class FakeMailer implements Mailer {
   failures: Error[] = [];
   /** Errors to throw for a specific recipient (one per send to that address). */
   failuresFor: Record<string, Error[]> = {};
+  verified: SmtpSettings[] = [];
+  verifyError: Error | null = null;
+  async verify(settings: SmtpSettings) {
+    this.verified.push(settings);
+    if (this.verifyError) throw this.verifyError;
+  }
+  async settingsFor() {
+    return { host: 'smtp.test', port: 587, secure: false, username: null, password: null, fromEmail: 'noreply@acme.test', fromName: null, replyTo: null };
+  }
   async send(email: OutgoingEmail) {
     const f = this.failuresFor[email.to]?.shift() ?? this.failures.shift();
     if (f) throw f;

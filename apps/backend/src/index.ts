@@ -35,7 +35,7 @@ const deps: Deps = {
   cartesia: createCartesiaClient(config.CARTESIA_API_KEY),
   twilio: createTwilioClient(),
   openai: createOpenAiClient(config.OPENAI_API_KEY),
-  mailer: createSmtpMailer(config),
+  mailer: createSmtpMailer(config, db),
 };
 const pipeline = defaultCallPipeline();
 const app = await buildApp(deps, pipeline);

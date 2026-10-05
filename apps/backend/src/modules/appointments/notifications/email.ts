@@ -48,10 +48,14 @@ export async function deliverEmailNotification(deps: Deps, n: NotificationRow): 
     link = appointmentLink(deps.config.APPOINTMENTS_PUBLIC_URL, token);
   }
   const template = await resolveTemplate(deps.db, n.organization_id, kind, ctx.settings);
-  const email = renderAppointmentEmail(ctx, { kind, template, link, config: deps.config, now: deps.clock.now() });
+  // The organization's sender address is also the calendar invite organizer.
+  const smtp = await deps.mailer.settingsFor(n.organization_id);
+  const config = { ...deps.config, SMTP_FROM_EMAIL: smtp?.fromEmail ?? deps.config.SMTP_FROM_EMAIL };
+  const email = renderAppointmentEmail(ctx, { kind, template, link, config, now: deps.clock.now() });
   const res = await deps.mailer.send({
     ...email,
     to,
+    organizationId: n.organization_id,
     headers: { 'X-Snyder-Appointment': appt.id, 'X-Snyder-Notification': n.id },
   });
   return { status: 'sent', providerMessage: res.messageId };

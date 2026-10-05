@@ -229,7 +229,7 @@ export async function registerAppointmentSettingsRoutes(app: FastifyInstance, de
     if (!to) throw badRequest('No recipient email');
     const email = await renderPreview(organizationId, b);
     try {
-      const res = await deps.mailer.send({ ...email, to, subject: `[Test] ${email.subject}` });
+      const res = await deps.mailer.send({ ...email, to, subject: `[Test] ${email.subject}`, organizationId });
       return { ok: true, messageId: res.messageId, to };
     } catch (err) {
       // Surface the real SMTP error to the admin.

@@ -12,6 +12,7 @@ import { DashboardPage } from './pages/Dashboard';
 import { CampaignEditorPage } from './pages/CampaignEditor';
 import { LiveMonitorPage } from './pages/LiveMonitor';
 import { DispositionsSettings } from './pages/settings/Dispositions';
+import { EmailSettings } from './pages/settings/EmailSettings';
 import { CampaignsPage } from './pages/Campaigns';
 import { LeadsPage } from './pages/Leads';
 import { AgentsSettings } from './pages/settings/Agents';
@@ -77,6 +78,7 @@ export function App() {
                 <Route index element={<SettingsIndex />} />
                 <Route path="organization" element={<RequirePermission permission="org.manage"><OrganizationSettings /></RequirePermission>} />
                 <Route path="users" element={<RequirePermission permission="users.manage"><UsersRoles /></RequirePermission>} />
+                <Route path="email" element={<RequirePermission permission="settings.manage"><EmailSettings /></RequirePermission>} />
                 <Route path="voices" element={<RequirePermission permission="settings.manage"><VoicesSettings /></RequirePermission>} />
                 <Route path="numbers" element={<RequirePermission permission="settings.manage"><PhoneNumbersSettings /></RequirePermission>} />
                 <Route path="agents" element={<RequirePermission permission="settings.manage"><AgentsSettings /></RequirePermission>} />

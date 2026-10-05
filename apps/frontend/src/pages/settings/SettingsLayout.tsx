@@ -5,6 +5,7 @@ import { cx, PageHeader } from '../../components/ui';
 export const SETTINGS_NAV = [
   { to: 'organization', label: 'Organization', permission: 'org.manage' },
   { to: 'users', label: 'Users & roles', permission: 'users.manage' },
+  { to: 'email', label: 'Email (SMTP)', permission: 'settings.manage' },
   { to: 'voices', label: 'Voices', permission: 'settings.manage' },
   { to: 'numbers', label: 'Phone numbers', permission: 'settings.manage' },
   { to: 'agents', label: 'Agents', permission: 'settings.manage' },

@@ -16,6 +16,7 @@ import { registerAgentRoutes } from './modules/agents/routes';
 import { registerCampaignRoutes } from './modules/campaigns/routes';
 import { registerNotificationRoutes } from './modules/org/notifications';
 import { registerOrgRoutes } from './modules/org/routes';
+import { registerSmtpRoutes } from './modules/org/smtpRoutes';
 import { registerErrorHandler } from './plugins/errors';
 import { registerFrontend } from './plugins/frontend';
 
@@ -34,6 +35,7 @@ export async function buildApp(deps: Deps, pipeline: CallPipeline = defaultCallP
   app.get('/health', async () => ({ ok: true }));
   await registerOrgRoutes(app, deps);
   await registerNotificationRoutes(app, deps);
+  await registerSmtpRoutes(app, deps);
   await registerLeadRoutes(app, deps);
   await registerTelephonyRoutes(app, deps);
   await registerAgentRoutes(app, deps);
