@@ -2,21 +2,22 @@ import { CampaignConfigSchema, type CampaignConfig, type CampaignSnapshot } from
 import type pg from 'pg';
 import type { DbClient } from '../../db/pool';
 import { notFound } from '../../lib/errors';
+import { appointmentSnapshotContributor } from '../appointments/settings';
 
 export interface PublishCheck {
   errors: string[];
   warnings: string[];
 }
 
-/** Hooks so feature modules (appointments) can validate and extend the snapshot without coupling. */
+/** Feature sections of the campaign config (e.g. "appointments") validated and frozen on publish. */
 export interface SnapshotContributor {
-  validate(db: DbClient, organizationId: string, config: Record<string, unknown>): Promise<PublishCheck>;
+  key: string;
+  validate(db: DbClient, organizationId: string, draft: Record<string, unknown>): Promise<PublishCheck>;
+  /** Returns the normalized (defaulted) section(s) to store in the snapshot. */
+  normalize(draft: Record<string, unknown>): Record<string, unknown>;
 }
 
-const contributors: SnapshotContributor[] = [];
-export function registerSnapshotContributor(c: SnapshotContributor) {
-  contributors.push(c);
-}
+const contributors: SnapshotContributor[] = [appointmentSnapshotContributor];
 
 export function parseCampaignConfig(raw: unknown): CampaignConfig {
   return CampaignConfigSchema.parse(raw ?? {});
@@ -83,8 +84,9 @@ export async function resolveSnapshot(
   }
 
   if (errors.length || !agent) return { snapshot: null, errors, warnings };
+  const sections = Object.assign({}, ...contributors.map((c) => c.normalize(campaign.draft ?? {})));
   return {
-    snapshot: { ...(campaign.draft as object), ...config, campaign_name: campaign.name, agent, phone_numbers: numbers },
+    snapshot: { ...(campaign.draft as object), ...sections, ...config, campaign_name: campaign.name, agent, phone_numbers: numbers },
     errors,
     warnings,
   };

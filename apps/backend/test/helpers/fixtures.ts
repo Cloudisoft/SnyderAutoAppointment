@@ -124,3 +124,50 @@ export function endOfCallReport(vapiCallId: string, over: Record<string, unknown
     },
   };
 }
+
+export async function createAppointmentType(
+  db: Db,
+  orgId: string,
+  t: Partial<{ duration: number; before: number; after: number; location_type: string; location_details: string; name: string }> = {},
+) {
+  const { rows } = await db.query<{ id: string }>(
+    `insert into appointment_types(organization_id, name, duration_minutes, buffer_before_minutes, buffer_after_minutes, location_type, location_details)
+     values ($1, $2, $3, $4, $5, $6, $7) returning id`,
+    [orgId, t.name ?? 'Intro call', t.duration ?? 30, t.before ?? 0, t.after ?? 0, t.location_type ?? 'video', t.location_details ?? 'https://meet.example.com/acme'],
+  );
+  return rows[0]!.id;
+}
+
+/** Host with weekly hours (ISO weekdays) in their time zone. Default Mon–Fri 09:00–17:00 New York. */
+export async function createHost(
+  db: Db,
+  orgId: string,
+  h: Partial<{ name: string; email: string; timeZone: string; days: number[]; start: string; end: string }> = {},
+) {
+  const { rows } = await db.query<{ id: string }>(
+    `insert into appointment_hosts(organization_id, display_name, email, time_zone) values ($1, $2, $3, $4) returning id`,
+    [orgId, h.name ?? 'Jordan Rivera', h.email ?? 'jordan@acme.test', h.timeZone ?? 'America/New_York'],
+  );
+  const hostId = rows[0]!.id;
+  for (const d of h.days ?? [1, 2, 3, 4, 5]) {
+    await db.query(
+      `insert into availability_rules(organization_id, host_id, weekday, start_time, end_time) values ($1, $2, $3, $4, $5)`,
+      [orgId, hostId, d, h.start ?? '09:00', h.end ?? '17:00'],
+    );
+  }
+  return hostId;
+}
+
+export async function insertAppointment(
+  db: Db,
+  orgId: string,
+  a: { typeId: string; hostId: string; startsAt: string; endsAt: string; status?: string; before?: number; after?: number; callId?: string; leadId?: string; campaignId?: string },
+) {
+  const { rows } = await db.query<{ id: string }>(
+    `insert into appointments(organization_id, appointment_type_id, host_id, starts_at, ends_at, lead_time_zone, status, source,
+                              buffer_before_minutes, buffer_after_minutes, call_id, lead_id, campaign_id)
+     values ($1, $2, $3, $4, $5, 'America/New_York', $6, 'manual', $7, $8, $9, $10, $11) returning id`,
+    [orgId, a.typeId, a.hostId, a.startsAt, a.endsAt, a.status ?? 'confirmed', a.before ?? 0, a.after ?? 0, a.callId ?? null, a.leadId ?? null, a.campaignId ?? null],
+  );
+  return rows[0]!.id;
+}
