@@ -171,3 +171,22 @@ export async function insertAppointment(
   );
   return rows[0]!.id;
 }
+
+/** Published campaign with booking enabled, one appointment type and one host (Mon–Fri 9–5 New York). */
+export async function createBookingCampaign(db: Db, orgId: string, settings: Record<string, unknown> = {}, typeOpts: Parameters<typeof createAppointmentType>[2] = {}) {
+  const typeId = await createAppointmentType(db, orgId, typeOpts);
+  const hostId = await createHost(db, orgId);
+  const c = await createPublishedCampaign(db, orgId, {
+    appointments: {
+      booking_enabled: true,
+      appointment_type_id: typeId,
+      host_assignment: { strategy: 'round_robin', host_ids: [hostId] },
+      ...settings,
+    },
+  });
+  return { ...c, typeId, hostId };
+}
+
+export function toolCallPayload(vapiCallId: string, name: string, args: Record<string, unknown>, id = `tc_${uniq()}`) {
+  return { message: { type: 'tool-calls', call: { id: vapiCallId }, toolCallList: [{ id, type: 'function', function: { name, arguments: args } }] } };
+}
