@@ -1,9 +1,10 @@
 import type { Config } from '../../src/config';
 import { loadConfig } from '../../src/config';
 import type { Deps } from '../../src/deps';
+import type { AuthVerifier, SupabaseAdmin } from '../../src/integrations/supabase';
 import { fixedClock } from '../../src/lib/clock';
 import { createLogger } from '../../src/lib/logger';
-import { testPool } from './db';
+import { createAuthUser, testPool } from './db';
 
 export const TEST_WEBHOOK_SECRET = 'test-vapi-webhook-secret-0123456789';
 
@@ -22,12 +23,32 @@ export function testConfig(overrides: Partial<Record<keyof Config, string>> = {}
   });
 }
 
+/** Tokens look like "test:<userId>" in tests. */
+export const fakeAuth: AuthVerifier = {
+  async verify(token) {
+    return token.startsWith('test:') ? { id: token.slice(5), email: null } : null;
+  },
+};
+
+export const fakeSupabaseAdmin: SupabaseAdmin = {
+  async inviteUser(email) {
+    const u = await createAuthUser(testPool(), email);
+    return { id: u.id, email };
+  },
+};
+
+export function bearerFor(userId: string) {
+  return { authorization: `Bearer test:${userId}` };
+}
+
 export function testDeps(overrides: Partial<Deps> = {}): Deps {
   return {
     config: testConfig(),
-    db: testPool(),
+    db: overrides.db ?? testPool(),
     logger: createLogger('silent'),
     clock: fixedClock('2026-10-12T14:00:00Z'),
+    auth: fakeAuth,
+    supabaseAdmin: fakeSupabaseAdmin,
     ...overrides,
   };
 }

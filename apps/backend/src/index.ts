@@ -1,6 +1,11 @@
 import { buildApp } from './app';
 import { loadConfig } from './config';
 import { createPool } from './db/pool';
+import {
+  createSupabaseAdmin,
+  createSupabaseAuthVerifier,
+  createSupabaseServiceClient,
+} from './integrations/supabase';
 import type { Deps } from './deps';
 import { systemClock } from './lib/clock';
 import { createLogger } from './lib/logger';
@@ -9,7 +14,16 @@ const config = loadConfig();
 const logger = createLogger(config.LOG_LEVEL);
 const db = createPool(config.DATABASE_URL);
 
-const deps: Deps = { config, db, logger, clock: systemClock };
+const supabase = createSupabaseServiceClient(config);
+
+const deps: Deps = {
+  config,
+  db,
+  logger,
+  clock: systemClock,
+  auth: createSupabaseAuthVerifier(supabase),
+  supabaseAdmin: createSupabaseAdmin(supabase),
+};
 const app = await buildApp(deps);
 
 const shutdown = async (signal: string) => {
