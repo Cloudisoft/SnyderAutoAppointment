@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { DateTime } from 'luxon';
+import { Link, useSearchParams } from 'react-router-dom';
 import { CallEventStream, type CallEvent } from '../components/calls/CallEvents';
 import { Badge, Card, Drawer, EmptyState, Input, PageHeader, Select, Table, Td } from '../components/ui';
 import { api } from '../lib/api';
@@ -18,6 +19,7 @@ export interface CallListRow {
   campaign_name: string | null;
   first_name: string | null;
   last_name: string | null;
+  appointment: { id: string; status: string; starts_at: string; lead_time_zone: string } | null;
 }
 
 interface CallDetail extends CallListRow {
@@ -72,7 +74,10 @@ export function CallsPage() {
               <Td className="whitespace-nowrap">{c.to_number}</Td>
               <Td>{c.campaign_name ?? '—'}</Td>
               <Td>{formatDuration(c.duration_seconds)}</Td>
-              <Td>{c.disposition_label ? <Badge tone={dispositionTone(c.disposition_key)}>{c.disposition_label}</Badge> : <Badge>{c.status}</Badge>}</Td>
+              <Td>
+                {c.disposition_label ? <Badge tone={dispositionTone(c.disposition_key)}>{c.disposition_label}</Badge> : <Badge>{c.status}</Badge>}
+                {c.appointment && <AppointmentBadge appt={c.appointment} />}
+              </Td>
             </tr>
           ))}
         </Table>
@@ -100,9 +105,32 @@ function CallDetails({ id }: { id: string }) {
         <dt className="text-muted">Campaign</dt><dd>{c.campaign_name ?? '—'} {c.campaign_version && `(v${c.campaign_version})`}</dd>
         <dt className="text-muted">Ended reason</dt><dd>{c.ended_reason ?? '—'}</dd>
       </dl>
+      {c.appointment && (
+        <Card title="Appointment booked">
+          <p className="text-sm">
+            {DateTime.fromISO(c.appointment.starts_at, { zone: c.appointment.lead_time_zone }).toFormat("cccc, LLLL d 'at' h:mm a ZZZZ")}{' '}
+            <Badge tone={c.appointment.status === 'needs_review' ? 'purple' : 'green'}>{c.appointment.status.replace('_', ' ')}</Badge>
+          </p>
+          <Link className="mt-2 inline-block text-sm text-primary underline" to={`/appointments?id=${c.appointment.id}`}>Open appointment</Link>
+        </Card>
+      )}
       {c.summary && <Card title="Summary"><p className="text-sm">{c.summary}</p></Card>}
       {c.recording_url && <audio controls src={c.recording_url} className="w-full" />}
       <Card title="Transcript & activity"><CallEventStream events={c.events} /></Card>
     </>
+  );
+}
+
+/** "Appointment booked" badge with the time, linking to the appointment. */
+function AppointmentBadge({ appt }: { appt: NonNullable<CallListRow['appointment']> }) {
+  return (
+    <Link
+      to={`/appointments?id=${appt.id}`}
+      onClick={(e) => e.stopPropagation()}
+      className="ml-1 mt-1 inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-medium text-green-700 hover:underline dark:text-green-300"
+      title="Open appointment"
+    >
+      {appt.status === 'needs_review' ? 'Appointment to review' : 'Appointment booked'} · {DateTime.fromISO(appt.starts_at).toFormat('LLL d, h:mm a')}
+    </Link>
   );
 }

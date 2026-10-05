@@ -3,6 +3,8 @@ import type pg from 'pg';
 import type { DbClient } from '../../db/pool';
 import type { Deps } from '../../deps';
 import type { CallEndStep } from '../calls/endOfCall';
+import { addCallEvent } from '../calls/events';
+import { displaySlotLabel } from './availability/spoken';
 import type { CallOutcome } from '../calls/outcome';
 import type { CallRow } from '../calls/types';
 import { loadVersionSnapshot } from '../campaigns/service';
@@ -129,7 +131,18 @@ export const appointmentsEndStep: CallEndStep = {
       return { appointmentBooked: false };
     }
     let confirmed = 0;
-    for (const p of pending) if (await confirmAppointment(client, deps, p.id, { type: 'system' })) confirmed++;
+    for (const p of pending) {
+      const appt = await confirmAppointment(client, deps, p.id, { type: 'system' });
+      if (!appt) continue;
+      confirmed++;
+      await addCallEvent(client, {
+        organizationId: call.organization_id,
+        callId: call.id,
+        type: 'booking',
+        content: `Appointment confirmed: ${displaySlotLabel(appt.starts_at, appt.lead_time_zone)}`,
+        metadata: { appointmentId: appt.id },
+      });
+    }
     return { appointmentBooked: confirmed > 0 };
   },
   // Send the confirmation right away instead of waiting for the dispatcher's next run.

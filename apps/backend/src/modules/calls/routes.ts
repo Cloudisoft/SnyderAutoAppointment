@@ -28,6 +28,8 @@ export async function registerCallRoutes(app: FastifyInstance, deps: Deps) {
       `select c.id, c.created_at, c.started_at, c.ended_at, c.duration_seconds, c.status, c.ended_reason, c.connected,
               c.disposition_key, d.label as disposition_label, c.to_number, c.from_number, c.campaign_id, cp.name as campaign_name,
               c.lead_id, l.first_name, l.last_name, l.email,
+              (select json_build_object('id', a.id, 'status', a.status, 'starts_at', a.starts_at, 'lead_time_zone', a.lead_time_zone)
+                 from appointments a where a.call_id = c.id and a.status <> 'cancelled' order by a.created_at desc limit 1) as appointment,
               count(*) over()::int as total_count
          from calls c
          left join leads l on l.id = c.lead_id
@@ -52,7 +54,9 @@ export async function registerCallRoutes(app: FastifyInstance, deps: Deps) {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const { rows } = await db.query(
       `select c.*, d.label as disposition_label, cp.name as campaign_name, v.version as campaign_version,
-              l.first_name, l.last_name, l.email, l.phone_e164, l.status as lead_status
+              l.first_name, l.last_name, l.email, l.phone_e164, l.status as lead_status,
+              (select json_build_object('id', a.id, 'status', a.status, 'starts_at', a.starts_at, 'lead_time_zone', a.lead_time_zone)
+                 from appointments a where a.call_id = c.id and a.status <> 'cancelled' order by a.created_at desc limit 1) as appointment
          from calls c
          left join leads l on l.id = c.lead_id
          left join campaigns cp on cp.id = c.campaign_id

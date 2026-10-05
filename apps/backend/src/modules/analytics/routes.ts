@@ -74,6 +74,16 @@ export async function registerAnalyticsRoutes(app: FastifyInstance, deps: Deps) 
 }
 
 /** Feature KPIs derived from roll-up totals (extended by the appointments feature). */
-export function extraKpis(_t: Record<string, number>): Record<string, number> {
-  return {};
+export function extraKpis(t: Record<string, number>): Record<string, number> {
+  const booked = t.appointments_booked ?? 0;
+  const completed = t.appointments_completed ?? 0;
+  const noShow = t.appointments_no_show ?? 0;
+  return {
+    appointments_booked: booked,
+    appointments_completed: completed,
+    appointments_no_show: noShow,
+    // -1 means "no attended/no-show appointments yet".
+    show_rate: completed + noShow ? completed / (completed + noShow) : -1,
+    booked_per_100_connected: t.connected ? (booked / t.connected) * 100 : 0,
+  };
 }

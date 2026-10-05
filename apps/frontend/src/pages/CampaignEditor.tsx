@@ -9,6 +9,7 @@ import { formatDateTime } from '../lib/format';
 import { campaignStatusTone } from './Campaigns';
 import type { Agent } from './settings/Agents';
 import type { PhoneNumber } from './settings/PhoneNumbers';
+import { AppointmentsSection } from './campaign/AppointmentsSection';
 
 export type CampaignConfigDraft = Record<string, unknown> & {
   agent_id: string | null;
@@ -38,7 +39,7 @@ export interface SectionProps {
   readOnly: boolean;
 }
 
-type Tab = 'general' | 'agent' | 'calling' | 'leads' | 'versions';
+type Tab = 'general' | 'agent' | 'calling' | 'appointments' | 'leads' | 'versions';
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export function CampaignEditorPage() {
@@ -126,6 +127,7 @@ export function CampaignEditorPage() {
           { value: 'general', label: 'General' },
           { value: 'agent', label: 'Agent & numbers' },
           { value: 'calling', label: 'Calling' },
+          { value: 'appointments', label: 'Appointments' },
           { value: 'leads', label: 'Leads' },
           { value: 'versions', label: 'Versions' },
         ]}
@@ -145,6 +147,7 @@ export function CampaignEditorPage() {
       )}
       {tab === 'agent' && <AgentSection {...sectionProps} />}
       {tab === 'calling' && <CallingSection {...sectionProps} />}
+      {tab === 'appointments' && <AppointmentsSection {...sectionProps} />}
       {tab === 'leads' && <LeadsSection campaignId={c.id} states={c.lead_states} readOnly={readOnly} onChange={invalidate} />}
       {tab === 'versions' && (
         <Table head={['Version', 'Published', 'By']}>

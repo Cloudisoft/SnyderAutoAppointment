@@ -5,7 +5,9 @@ import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { AppShell } from './components/AppShell';
 import { EmptyState, Spinner } from './components/ui';
 import { applyTheme } from './lib/theme';
+import { AppointmentsPage } from './pages/Appointments';
 import { CallsPage } from './pages/Calls';
+import { AppointmentSettingsPage } from './pages/settings/AppointmentSettings';
 import { DashboardPage } from './pages/Dashboard';
 import { CampaignEditorPage } from './pages/CampaignEditor';
 import { LiveMonitorPage } from './pages/LiveMonitor';
@@ -69,6 +71,7 @@ export function App() {
               <Route path="campaigns/:id" element={<RequirePermission permission="campaigns.view"><CampaignEditorPage /></RequirePermission>} />
               <Route path="calls" element={<RequirePermission permission="calls.view"><CallsPage /></RequirePermission>} />
               <Route path="monitor" element={<RequirePermission permission="monitor.view"><LiveMonitorPage /></RequirePermission>} />
+              <Route path="appointments" element={<RequirePermission permission="appointments.view"><AppointmentsPage /></RequirePermission>} />
               <Route path="leads" element={<RequirePermission permission="leads.view"><LeadsPage /></RequirePermission>} />
               <Route path="settings" element={<SettingsLayout />}>
                 <Route index element={<SettingsIndex />} />
@@ -78,6 +81,7 @@ export function App() {
                 <Route path="numbers" element={<RequirePermission permission="settings.manage"><PhoneNumbersSettings /></RequirePermission>} />
                 <Route path="agents" element={<RequirePermission permission="settings.manage"><AgentsSettings /></RequirePermission>} />
                 <Route path="dispositions" element={<RequirePermission permission="settings.manage"><DispositionsSettings /></RequirePermission>} />
+                <Route path="appointments" element={<RequirePermission permission="appointments.settings"><AppointmentSettingsPage /></RequirePermission>} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

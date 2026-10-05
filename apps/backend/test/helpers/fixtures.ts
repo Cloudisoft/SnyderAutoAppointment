@@ -103,7 +103,7 @@ export async function createCall(
   const { rows } = await db.query<{ id: string; vapi_call_id: string }>(
     `insert into calls(organization_id, campaign_id, campaign_version_id, campaign_lead_id, lead_id, vapi_call_id, to_number,
                        status, started_at, booking_tools_enabled, created_at)
-     values ($1, $2, $3, $4, $5, $6, '+12125550142', 'in_progress', now(), $7, coalesce($8::timestamptz, now()))
+     values ($1, $2, $3, $4, $5, $6, (select phone_e164 from leads where id = $5), 'in_progress', now(), $7, coalesce($8::timestamptz, now()))
      returning id, vapi_call_id`,
     [orgId, c.campaignId, c.versionId, cl[0]!.id, c.leadId, c.vapiCallId ?? `vapi_${uniq()}`, c.bookingTools ?? false, c.createdAt ?? null],
   );
@@ -193,7 +193,7 @@ export function toolCallPayload(vapiCallId: string, name: string, args: Record<s
 
 /** Books a slot through the Vapi tools, ends the call (connected) and returns the confirmed appointment and its link token. */
 export async function bookAndConfirm(
-  app: { inject: (o: object) => Promise<{ json(): any }> },
+  app: { inject: (o: object) => Promise<{ json(): unknown }> },
   db: Db,
   orgId: string,
   campaign: { campaignId: string; versionId: string },
@@ -207,7 +207,8 @@ export async function bookAndConfirm(
     method: 'POST', url: '/webhooks/vapi', headers,
     payload: toolCallPayload(call.vapiCallId, 'book_appointment', { slot_id: 'slot_1', attendee_name: 'Ada Lovelace', attendee_email: opts.email ?? 'ada@example.com' }),
   });
-  if (!String(r.json().results[0].result).startsWith('Booked')) throw new Error(`booking failed: ${r.json().results[0].result}`);
+  const result = (r.json() as { results: { result: string }[] }).results[0]!.result;
+  if (!result.startsWith('Booked')) throw new Error(`booking failed: ${result}`);
   await app.inject({ method: 'POST', url: '/webhooks/vapi', headers, payload: endOfCallReport(call.vapiCallId) });
   const { rows } = await db.query<{ id: string }>('select id from appointments where call_id = $1', [call.callId]);
   const email = [...opts.mailer.sent].reverse().find((m) => m.to === (opts.email ?? 'ada@example.com') && /\/a\//.test(m.text));
