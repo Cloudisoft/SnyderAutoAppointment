@@ -43,8 +43,16 @@ multiple instances are safe): `dialer`, `call-reconcile`, `appointment-hold-expi
 
 ## Deploy (Railway)
 
-`railway.json` deploys the monorepo as one service: the build compiles the backend and the web app,
-the pre-deploy step applies migrations (`node apps/backend/dist/db/migrate.js`), and the backend
-serves the API, webhooks, the public appointment page and the web app (`FRONTEND_DIST_DIR=apps/frontend/dist`).
+One service deploys the whole monorepo. Service settings (set in Railway):
+
+| Setting | Value |
+|---|---|
+| Build command | `pnpm --filter @snyder/backend build && pnpm --filter @snyder/frontend build` |
+| Pre-deploy command | `node apps/backend/dist/db/migrate.js` (applies pending migrations) |
+| Start command | `node apps/backend/dist/index.js` |
+| Healthcheck path | `/health` |
+
+The backend serves the API, webhooks, the public appointment page and the web app
+(`FRONTEND_DIST_DIR=apps/frontend/dist`).
 Set `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` as service variables so they are present at build time.
 Use Supabase's **Session pooler** connection string for `DATABASE_URL` (IPv4).
