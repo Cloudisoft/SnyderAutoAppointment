@@ -9,7 +9,7 @@ import { ExportButtons } from '../components/ExportButtons';
 import { Badge, Button, Card, ConfirmModal, Drawer, EmptyState, Input, PageHeader, Select, SkeletonRows, Table, Td, cx } from '../components/ui';
 import { toast } from '../lib/toast';
 import { api } from '../lib/api';
-import { formatDateTime, formatDuration } from '../lib/format';
+import { formatDateTime, formatDuration, formatEndedReason } from '../lib/format';
 
 export interface CallListRow {
   id: string;
@@ -162,7 +162,7 @@ function CallDetails({ id }: { id: string }) {
         <dt className="text-muted">Lead</dt><dd>{[c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</dd>
         <dt className="text-muted">Number</dt><dd>{c.to_number}</dd>
         <dt className="text-muted">Campaign</dt><dd>{c.campaign_name ?? '—'} {c.campaign_version && `(v${c.campaign_version})`}</dd>
-        <dt className="text-muted">Ended reason</dt><dd>{c.ended_reason ?? '—'}</dd>
+        <dt className="text-muted">Ended reason</dt><dd>{formatEndedReason(c.ended_reason)}</dd>
       </dl>
       {c.appointment && (
         <Card title="Appointment booked">

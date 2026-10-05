@@ -99,8 +99,8 @@ export function CampaignEditorPage() {
     },
     onSuccess: (r) => {
       setTestResult(r);
-      if (r.ok) toast.success('Vapi accepted this call setup');
-      else toast.error(r.errors[0] ?? 'Vapi rejected this call setup');
+      if (r.ok) toast.success('Call setup verified');
+      else toast.error(r.errors[0] ?? 'This call setup was rejected');
     },
   });
   const setStatus = useMutation({ mutationFn: (status: string) => api.post(`/api/campaigns/${id}/status`, { status }), onSuccess: invalidate });
@@ -129,7 +129,7 @@ export function CampaignEditorPage() {
               ) : (
                 <Button disabled={!c.current_version_id} onClick={() => setStatus.mutate('active')}>Start</Button>
               )}
-              <Button loading={testConfig.isPending} onClick={() => testConfig.mutate()} title="Checks model, voice, tools and recording with Vapi without placing a call">Test call setup</Button>
+              <Button loading={testConfig.isPending} onClick={() => testConfig.mutate()} title="Checks model, voice, tools and recording without placing a call">Test call setup</Button>
               <Button loading={saveDraft.isPending} onClick={() => saveDraft.mutate()} disabled={!dirty}>Save draft</Button>
               <Button variant="primary" loading={check.isPending || publish.isPending} onClick={() => check.mutate()}>Save &amp; publish</Button>
             </>
@@ -140,7 +140,7 @@ export function CampaignEditorPage() {
       {testResult && (
         <div className={`mb-4 rounded-xl border p-4 text-sm animate-page-in ${testResult.ok ? 'border-success/30 bg-success/5' : 'border-danger/30 bg-danger/5'}`}>
           <div className="flex items-start justify-between gap-3">
-            <p className="font-semibold">{testResult.ok ? '✓ Vapi accepted this call setup' : '✕ This call setup will not work yet'}</p>
+            <p className="font-semibold">{testResult.ok ? '✓ Call setup verified' : '✕ This call setup will not work yet'}</p>
             <button className="text-muted hover:text-fg" onClick={() => setTestResult(null)} aria-label="Dismiss">✕</button>
           </div>
           {testResult.errors.map((e) => <p key={e} className="mt-1 text-danger">{e}</p>)}

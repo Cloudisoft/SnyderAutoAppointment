@@ -8,7 +8,7 @@ import { cx } from './ui';
 type SetupKey = 'voice' | 'phone_number' | 'agent' | 'leads' | 'email' | 'appointment_type' | 'campaign' | 'first_call';
 
 const STEPS: { key: SetupKey; title: string; detail: string; to: string }[] = [
-  { key: 'voice', title: 'Add a Cartesia voice', detail: 'Pick how your AI sounds.', to: '/settings/voices' },
+  { key: 'voice', title: 'Add a voice', detail: 'Pick how your AI sounds.', to: '/settings/voices' },
   { key: 'phone_number', title: 'Connect a phone number', detail: 'Import a Twilio number to call from.', to: '/settings/numbers' },
   { key: 'agent', title: 'Create an agent', detail: 'Prompt, voice and Claude Haiku 4.5.', to: '/settings/agents' },
   { key: 'email', title: 'Set up email (SMTP)', detail: 'Confirmations and reminders go out from your address.', to: '/settings/email' },

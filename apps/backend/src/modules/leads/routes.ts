@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { withTx, type DbClient } from '../../db/pool';
 import type { Deps } from '../../deps';
 import { parseCsvObjects } from '../../lib/csv';
+import { neutralize } from '../../lib/http';
 import { sendTableExport, type ExportColumn } from '../../lib/tableExport';
 import { badRequest, notFound } from '../../lib/errors';
 import { digitsOnly, toE164 } from '../../lib/phone';
@@ -249,7 +250,7 @@ export async function registerLeadRoutes(app: FastifyInstance, deps: Deps) {
       ['Last call at', (r) => r.last_call_at],
       ['Last call status', (r) => r.last_call_status],
       ['Last call duration (s)', (r) => r.last_call_duration],
-      ['Last call ended reason', (r) => r.last_call_ended_reason],
+      ['Last call ended reason', (r) => (typeof r.last_call_ended_reason === 'string' ? neutralize(r.last_call_ended_reason) : null)],
       ['Last disposition', (r) => r.last_call_disposition ?? r.last_disposition],
       ['Last call summary', (r) => r.last_call_summary],
       ['Last call recording URL', (r) => r.last_call_recording_url],

@@ -26,7 +26,7 @@ export function createOpenAiClient(apiKey: string, model = 'gpt-4o-mini'): OpenA
   return {
     enabled: !!apiKey,
     async extractCall({ transcript, nowIso, timeZone }) {
-      if (!apiKey) throw new HttpError(503, 'OPENAI_API_KEY is not configured on the server', 'not_configured');
+      if (!apiKey) throw new HttpError(503, 'The AI service is not configured on the server (missing API key)', 'not_configured');
       const res = await fetchJson<{ choices: { message: { content: string } }[] }>(
         'OpenAI',
         'https://api.openai.com/v1/chat/completions',

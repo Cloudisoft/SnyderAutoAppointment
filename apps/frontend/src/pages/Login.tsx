@@ -73,7 +73,7 @@ export function LoginPage() {
 }
 
 const FEATURES = [
-  'Natural voices with Cartesia and Claude',
+  'Natural, human-sounding AI voices',
   'Live monitor with real-time transcripts',
   'Warm transfers to your team',
   'Appointments booked and confirmed by email',

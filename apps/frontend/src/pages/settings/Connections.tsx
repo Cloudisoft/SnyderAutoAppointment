@@ -15,11 +15,11 @@ export function ConnectionsSettings() {
   const q = useQuery({ queryKey: ['integrations-health'], queryFn: () => api.get<Health>('/api/integrations/health'), staleTime: 0 });
   const rows: [string, string, Check][] = q.data
     ? [
-        ['Vapi', 'Places the calls, runs the conversation and live transcripts', q.data.vapi],
-        ['Cartesia', 'Voices (sonic-3)', q.data.cartesia],
+        ['Calling service', 'Places the calls, runs the conversation and live transcripts', q.data.vapi],
+        ['Voice service', 'AI voices', q.data.cartesia],
         ...q.data.twilio.map((t): [string, string, Check] => [`Twilio · ${t.name}`, 'Phone numbers and caller ID', t]),
         ['Email (SMTP)', 'Confirmations, reminders and reschedule links', q.data.email],
-        ['Webhook URL', 'Where Vapi sends call events (set automatically on every call)', q.data.webhook],
+        ['Webhook URL', 'Where live call events are sent (set automatically on every call)', q.data.webhook],
       ]
     : [];
   return (

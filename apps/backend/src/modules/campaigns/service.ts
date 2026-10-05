@@ -51,7 +51,7 @@ export async function resolveSnapshot(
     );
     const a = rows[0];
     if (!a) errors.push('The selected agent no longer exists.');
-    else if (!a.v_voice_id) errors.push('The agent has no Cartesia voice.');
+    else if (!a.v_voice_id) errors.push('The agent has no voice.');
     else if (!a.v_active) errors.push('The agent’s voice is disabled.');
     else {
       if (!a.system_prompt.trim()) warnings.push('The agent has an empty prompt.');

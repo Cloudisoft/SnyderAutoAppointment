@@ -61,7 +61,7 @@ export function AgentsSettings() {
         {editing && (
           <>
             <Field label="Name"><Input value={editing.name} onChange={(e) => set('name', e.target.value)} /></Field>
-            <Field label="Cartesia voice" hint="The voice name becomes {{agent_name}}.">
+            <Field label="Voice" hint="The voice name becomes {{agent_name}}.">
               <Select value={editing.voice_id ?? ''} onChange={(e) => set('voice_id', e.target.value || null)}>
                 <option value="">Choose a voice</option>
                 {(voices.data ?? []).filter((v) => v.is_active).map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
@@ -93,7 +93,7 @@ export function AgentsSettings() {
       </Modal>
       <Modal open={kbOpen} onClose={() => setKbOpen(false)} title="Add knowledge base" footer={<Button variant="primary" loading={addKb.isPending} onClick={() => addKb.mutate()}>Add</Button>}>
         <Field label="Name"><Input value={kb.name} onChange={(e) => setKb({ ...kb, name: e.target.value })} /></Field>
-        <Field label="Vapi query tool ID"><Input value={kb.vapi_tool_id} onChange={(e) => setKb({ ...kb, vapi_tool_id: e.target.value })} /></Field>
+        <Field label="Knowledge base tool ID"><Input value={kb.vapi_tool_id} onChange={(e) => setKb({ ...kb, vapi_tool_id: e.target.value })} /></Field>
         <ErrorText error={addKb.error} />
       </Modal>
     </div>

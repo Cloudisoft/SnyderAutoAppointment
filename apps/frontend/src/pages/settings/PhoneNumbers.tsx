@@ -40,7 +40,7 @@ export function PhoneNumbersSettings() {
           {(accounts.data ?? []).map((a) => <li key={a.id} className="py-2"><span className="font-medium">{a.label}</span> <code className="text-xs text-muted">{a.account_sid}</code></li>)}
         </ul>
       </Card>
-      <Card title="Phone numbers (caller ID)" actions={<Button size="sm" variant="primary" disabled={!accounts.data?.length} onClick={() => { setImp({ twilio_account_id: accounts.data?.[0]?.id ?? '', number: '', label: '' }); setImportOpen(true); }}>Import number into Vapi</Button>}>
+      <Card title="Phone numbers (caller ID)" actions={<Button size="sm" variant="primary" disabled={!accounts.data?.length} onClick={() => { setImp({ twilio_account_id: accounts.data?.[0]?.id ?? '', number: '', label: '' }); setImportOpen(true); }}>Import number</Button>}>
         <Table head={['Number', 'Label', 'Twilio account', 'Status', '']}>
           {(numbers.data ?? []).map((n) => (
             <tr key={n.id}>
@@ -59,7 +59,7 @@ export function PhoneNumbersSettings() {
         <Field label="Auth token"><Input type="password" value={acct.auth_token} onChange={(e) => setAcct({ ...acct, auth_token: e.target.value.trim() })} /></Field>
         <ErrorText error={addAcct.error} />
       </Modal>
-      <Modal open={importOpen} onClose={() => setImportOpen(false)} title="Import Twilio number into Vapi" footer={<Button variant="primary" disabled={!imp.number} loading={importNumber.isPending} onClick={() => importNumber.mutate()}>Import</Button>}>
+      <Modal open={importOpen} onClose={() => setImportOpen(false)} title="Import Twilio number" footer={<Button variant="primary" disabled={!imp.number} loading={importNumber.isPending} onClick={() => importNumber.mutate()}>Import</Button>}>
         <Field label="Twilio account">
           <Select value={imp.twilio_account_id} onChange={(e) => setImp({ ...imp, twilio_account_id: e.target.value })}>
             {(accounts.data ?? []).map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}

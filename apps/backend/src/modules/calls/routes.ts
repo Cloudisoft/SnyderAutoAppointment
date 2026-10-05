@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { Deps } from '../../deps';
 import { notFound } from '../../lib/errors';
 import { authenticate, authOf, requirePermission } from '../../plugins/auth';
+import { neutralize } from '../../lib/http';
 import { sendTableExport, type ExportColumn } from '../../lib/tableExport';
 import type { Db } from '../../db/pool';
 import { searchTerms } from '../leads/routes';
@@ -79,7 +80,7 @@ const CALL_EXPORT_COLUMNS: ExportColumn<CallRow>[] = [
   ['Voicemail', (r) => yesNo(r.voicemail)],
   ['Transferred', (r) => yesNo(r.transferred)],
   ['Do not call requested', (r) => yesNo(r.dnc_requested)],
-  ['Ended reason', (r) => r.ended_reason],
+  ['Ended reason', (r) => (typeof r.ended_reason === 'string' ? neutralize(r.ended_reason) : null)],
   ['Disposition', (r) => r.disposition_label ?? r.disposition_key],
   ['Appointment status', (r) => r.appointment?.status],
   ['Appointment start (UTC)', (r) => r.appointment?.starts_at],

@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
+import { AGENT_MODELS } from '@snyder/shared';
 import { z } from 'zod';
 import type { Deps } from '../../deps';
 import { HttpError, notFound } from '../../lib/errors';
-import { UpstreamError } from '../../lib/http';
+import { neutralize, UpstreamError } from '../../lib/http';
 import { authenticate, authOf, requirePermission } from '../../plugins/auth';
 import { buildAssistant, serverUrl, type AssistantExtension, type AssistantLead } from '../agents/assistantBuilder';
 import type { CallPipeline } from '../calls/pipeline';
@@ -16,7 +17,7 @@ export interface CheckResult {
 }
 
 const describe = (err: unknown) =>
-  err instanceof UpstreamError ? err.userMessage : err instanceof HttpError ? err.message : (err as Error)?.message || 'Unknown error';
+  err instanceof UpstreamError ? err.userMessage : err instanceof HttpError ? err.message : neutralize((err as Error)?.message || 'Unknown error');
 
 async function check(fn: () => Promise<string>): Promise<CheckResult> {
   try {
@@ -114,8 +115,8 @@ export async function registerHealthRoutes(app: FastifyInstance, deps: Deps, pip
     const assistant = buildAssistant({ snapshot, lead, callId, organizationId, config: deps.config, extensions });
     assistant.name = `config-test ${snapshot.campaign_name}`.slice(0, 40);
     const summary = {
-      model: `${assistant.model.provider} · ${assistant.model.model}`,
-      voice: `${assistant.voice.provider} · ${assistant.voice.model} · ${snapshot.agent.voice.name}`,
+      model: AGENT_MODELS.find((m) => m.id === assistant.model.model)?.label ?? assistant.model.model,
+      voice: snapshot.agent.voice.name,
       tools: assistant.model.tools.map((t) => (t.type === 'function' ? t.function.name : t.type)),
       recording: !!assistant.artifactPlan?.recordingEnabled,
     };
@@ -124,7 +125,7 @@ export async function registerHealthRoutes(app: FastifyInstance, deps: Deps, pip
       await deps.vapi.deleteAssistant(created.id).catch((err) => req.log.warn({ err, id: created.id }, 'could not delete config-test assistant'));
       return { ok: true, errors: [], warnings: resolved.warnings, ...summary };
     } catch (err) {
-      return { ok: false, errors: [`Vapi rejected the call config: ${describe(err)}`], warnings: resolved.warnings, ...summary };
+      return { ok: false, errors: [`The call setup was rejected: ${describe(err)}`], warnings: resolved.warnings, ...summary };
     }
   });
 }

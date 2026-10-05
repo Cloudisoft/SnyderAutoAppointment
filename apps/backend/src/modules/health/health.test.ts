@@ -20,7 +20,7 @@ describeDb('integration health and config test', () => {
     const res = await app.inject({ method: 'GET', url: '/api/integrations/health', headers: bearerFor(org.ownerId) });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.vapi).toEqual({ ok: false, message: 'Vapi rejected the API key (401). Check the Vapi credentials.' });
+    expect(body.vapi).toEqual({ ok: false, message: 'Calling service rejected the API key (401). Check its credentials in the server settings.' });
     expect(body.cartesia.ok).toBe(true);
     expect(body.twilio[0].ok).toBe(false);
     expect(body.email.ok).toBe(false);
@@ -33,8 +33,9 @@ describeDb('integration health and config test', () => {
     const vapi = new FakeVapi();
     const app = await buildApp(testDeps({ vapi }));
     const res = await app.inject({ method: 'POST', url: `/api/campaigns/${campaignId}/test-config`, headers: bearerFor(org.ownerId) });
-    expect(res.json()).toMatchObject({ ok: true, model: 'anthropic · claude-haiku-4-5-20251001', recording: true });
-    expect(res.json().voice).toContain('cartesia · sonic-3');
+    expect(res.json()).toMatchObject({ ok: true, model: 'Claude Haiku 4.5', recording: true });
+    expect(res.json().voice).toBe('Katie');
+    expect(JSON.stringify(res.json())).not.toMatch(/vapi|cartesia/i);
     expect(vapi.createdAssistants).toHaveLength(1);
     expect(vapi.deletedAssistants).toHaveLength(1);
 

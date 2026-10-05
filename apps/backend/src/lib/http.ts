@@ -1,3 +1,7 @@
+/** Vendor-neutral names shown to users (internal service ids stay in logs). */
+const DISPLAY_NAMES: Record<string, string> = { Vapi: 'Calling service', Cartesia: 'Voice service', OpenAI: 'AI service' };
+export const serviceDisplayName = (service: string) => DISPLAY_NAMES[service] ?? service;
+
 export class UpstreamError extends Error {
   constructor(
     public readonly service: string,
@@ -17,10 +21,11 @@ export class UpstreamError extends Error {
     } catch {
       /* not JSON */
     }
-    detail = detail.slice(0, 300);
-    if (this.status === 0) return `${this.service}: ${detail}`;
-    if (this.status === 401 || this.status === 403) return `${this.service} rejected the API key (${this.status}). Check the ${this.service} credentials.`;
-    return `${this.service} error (${this.status}): ${detail || 'no details'}`;
+    detail = neutralize(detail.slice(0, 300));
+    const name = serviceDisplayName(this.service);
+    if (this.status === 0) return `${name}: ${detail}`;
+    if (this.status === 401 || this.status === 403) return `${name} rejected the API key (${this.status}). Check its credentials in the server settings.`;
+    return `${name} error (${this.status}): ${detail || 'no details'}`;
   }
 }
 
@@ -36,7 +41,7 @@ export async function fetchJson<T>(
     res = await fetch(url, { ...rest, signal: AbortSignal.timeout(timeoutMs) });
   } catch (err) {
     if ((err as Error).name === 'TimeoutError' || (err as Error).name === 'AbortError') {
-      throw new TimeoutError(`${service} did not respond within ${Math.round(timeoutMs / 1000)}s`);
+      throw new TimeoutError(`${serviceDisplayName(service)} did not respond within ${Math.round(timeoutMs / 1000)}s`);
     }
     throw new UpstreamError(service, 0, `could not connect (${(err as Error).message})`);
   }
@@ -59,3 +64,8 @@ export async function withTimeout<T>(promise: Promise<T>, ms: number, label = 'o
 }
 
 export class TimeoutError extends Error {}
+
+/** Removes vendor names from text that is shown to users. */
+export function neutralize(text: string): string {
+  return text.replace(/vapi/gi, 'platform').replace(/cartesia/gi, 'voice');
+}

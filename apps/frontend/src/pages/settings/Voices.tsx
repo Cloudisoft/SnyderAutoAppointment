@@ -30,21 +30,20 @@ export function VoicesSettings() {
   });
 
   return (
-    <Card title="Cartesia voices" actions={<Button size="sm" variant="primary" onClick={() => setOpen(true)}>Add voices</Button>}>
-      <p className="mb-4 text-sm text-muted">Voices use Cartesia sonic-3. The voice name is how the AI introduces itself ({'{{agent_name}}'}).</p>
+    <Card title="Voices" actions={<Button size="sm" variant="primary" onClick={() => setOpen(true)}>Add voices</Button>}>
+      <p className="mb-4 text-sm text-muted">The voice name is how the AI introduces itself ({'{{agent_name}}'}).</p>
       {voices.isLoading ? <SkeletonRows rows={3} /> : rows.length === 0 ? (
         <EmptyState title="No voices yet">
-          Add one or more Cartesia voices, then pick one for each agent.
-          <div className="mt-4"><Button variant="primary" onClick={() => setOpen(true)}>Browse Cartesia voices</Button></div>
+          Add one or more voices, then pick one for each agent.
+          <div className="mt-4"><Button variant="primary" onClick={() => setOpen(true)}>Browse voices</Button></div>
         </EmptyState>
       ) : (
-        <Table head={[<SelectAllCheckbox key="all" sel={sel} />, 'Name', 'Voice ID', 'Model', 'Status', '']}>
+        <Table head={[<SelectAllCheckbox key="all" sel={sel} />, 'Name', 'Voice ID', 'Status', '']}>
           {rows.map((v) => (
             <tr key={v.id} className={sel.has(v.id) ? 'bg-primary-soft' : undefined}>
               <Td className="w-8"><Checkbox label={`Select ${v.name}`} checked={sel.has(v.id)} onChange={() => sel.toggle(v.id)} /></Td>
               <Td className="font-medium">{v.name}</Td>
               <Td><code className="text-xs">{v.voice_id}</code></Td>
-              <Td>{v.model}</Td>
               <Td>{v.is_active ? <Badge tone="green">Active</Badge> : <Badge>Inactive</Badge>}</Td>
               <Td className="text-right"><Button size="sm" variant="ghost" disabled={toggle.isPending} onClick={() => toggle.mutate(v)}>{v.is_active ? 'Disable' : 'Enable'}</Button></Td>
             </tr>
@@ -105,13 +104,13 @@ function AddVoicesModal({ open, onClose, existing, onDone }: { open: boolean; on
     <Modal
       open={open}
       onClose={onClose}
-      title="Add Cartesia voices"
+      title="Add voices"
       footer={<Button variant="primary" disabled={!count} loading={add.isPending} onClick={() => add.mutate()}>{count ? `Add ${count} voice${count === 1 ? '' : 's'}` : 'Add voices'}</Button>}
     >
       <Input placeholder="Search voices by name, style or language" value={search} onChange={(e) => setSearch(e.target.value)} />
       <div className="max-h-72 overflow-auto rounded-lg border border-border">
         {cartesia.isLoading && <div className="space-y-2 p-3"><SkeletonRows rows={4} /></div>}
-        {cartesia.isError && <p className="p-3 text-sm text-danger">Could not load Cartesia voices: {(cartesia.error as Error).message}. You can still add a voice by ID below.</p>}
+        {cartesia.isError && <p className="p-3 text-sm text-danger">Could not load the voice library: {(cartesia.error as Error).message}. You can still add a voice by ID below.</p>}
         {!cartesia.isLoading && !cartesia.isError && list.length === 0 && <p className="p-3 text-sm text-muted">No voices match “{search}”.</p>}
         <ul className="divide-y divide-border">
           {list.map((v) => {
@@ -135,7 +134,7 @@ function AddVoicesModal({ open, onClose, existing, onDone }: { open: boolean; on
       <details className="text-sm">
         <summary className="cursor-pointer text-muted hover:text-fg">Add by voice ID instead</summary>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <Field label="Cartesia voice ID"><Input value={manualId} onChange={(e) => setManualId(e.target.value)} /></Field>
+          <Field label="Voice ID"><Input value={manualId} onChange={(e) => setManualId(e.target.value)} /></Field>
           <Field label="Agent name" hint="Spoken by the AI, e.g. “Katie”."><Input value={manualName} onChange={(e) => setManualName(e.target.value)} /></Field>
         </div>
       </details>

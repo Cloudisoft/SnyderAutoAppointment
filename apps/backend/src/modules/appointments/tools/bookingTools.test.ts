@@ -61,7 +61,7 @@ describeDb('Vapi booking tools', () => {
     expect(vapi.calls[0]!.assistant.model.messages[0]!.content).not.toContain('# Scheduling');
     const { rows } = await db.query(
       `select c.booking_tools_enabled, c.vapi_call_id is not null as placed,
-              (select count(*)::int from call_events e where e.call_id = c.id and e.content like 'Vapi rejected%') as logged
+              (select count(*)::int from call_events e where e.call_id = c.id and e.content like 'The calling service rejected%') as logged
          from calls c where id = $1`,
       [callId],
     );

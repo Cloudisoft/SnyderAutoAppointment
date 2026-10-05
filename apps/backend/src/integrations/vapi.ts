@@ -103,7 +103,7 @@ export function isVapiValidationError(err: unknown): boolean {
 
 export function createVapiClient(apiKey: string): VapiClient {
   const headers = () => {
-    if (!apiKey) throw new HttpError(503, 'VAPI_API_KEY is not configured on the server', 'not_configured');
+    if (!apiKey) throw new HttpError(503, 'The calling service is not configured on the server (missing API key)', 'not_configured');
     return { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' };
   };
   return {

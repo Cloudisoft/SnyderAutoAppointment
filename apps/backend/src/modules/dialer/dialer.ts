@@ -158,7 +158,7 @@ export async function placeCall(deps: Deps, pipeline: CallPipeline, p: PlacedCal
         organizationId: p.organizationId,
         callId: p.callId,
         type: 'system',
-        content: `Vapi rejected the ${optional.map((e) => e.name).join(', ')} tools; call placed without them`,
+        content: `The calling service rejected the ${optional.map((e) => e.name).join(', ')} tools; call placed without them`,
         metadata: { error: (err as Error).message.slice(0, 500) },
       });
       await send(extensions.filter((e) => !e.optional));
