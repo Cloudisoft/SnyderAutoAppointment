@@ -1,6 +1,7 @@
 import type { Config } from './config';
 import type { Db } from './db/pool';
 import type { CartesiaClient } from './integrations/cartesia';
+import type { Mailer } from './integrations/mailer';
 import type { OpenAiClient } from './integrations/openai';
 import type { AuthVerifier, SupabaseAdmin } from './integrations/supabase';
 import type { TwilioClient } from './integrations/twilio';
@@ -20,4 +21,5 @@ export interface Deps {
   cartesia: CartesiaClient;
   twilio: TwilioClient;
   openai: OpenAiClient;
+  mailer: Mailer;
 }

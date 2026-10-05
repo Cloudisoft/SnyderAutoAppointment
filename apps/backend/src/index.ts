@@ -5,6 +5,7 @@ import { JobRunner } from './jobs/runner';
 import { loadConfig } from './config';
 import { createPool } from './db/pool';
 import { createCartesiaClient } from './integrations/cartesia';
+import { createSmtpMailer } from './integrations/mailer';
 import { createOpenAiClient } from './integrations/openai';
 import { createTwilioClient } from './integrations/twilio';
 import { createVapiClient } from './integrations/vapi';
@@ -34,6 +35,7 @@ const deps: Deps = {
   cartesia: createCartesiaClient(config.CARTESIA_API_KEY),
   twilio: createTwilioClient(),
   openai: createOpenAiClient(config.OPENAI_API_KEY),
+  mailer: createSmtpMailer(config),
 };
 const pipeline = defaultCallPipeline();
 const app = await buildApp(deps, pipeline);

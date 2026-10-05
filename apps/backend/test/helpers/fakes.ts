@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { CartesiaClient } from '../../src/integrations/cartesia';
+import type { Mailer, OutgoingEmail } from '../../src/integrations/mailer';
 import type { CallExtraction, OpenAiClient } from '../../src/integrations/openai';
 import type { TwilioClient } from '../../src/integrations/twilio';
 import type { VapiCall, VapiCallRequest, VapiClient } from '../../src/integrations/vapi';
@@ -61,5 +62,18 @@ export class FakeOpenAi implements OpenAiClient {
   async extractCall() {
     this.calls++;
     return { summary: 'Prospect discussed the offer.', meeting_agreed: false, meeting_start: null, attendee_email: null, notes: null, ...this.next };
+  }
+}
+
+export class FakeMailer implements Mailer {
+  configured = true;
+  sent: OutgoingEmail[] = [];
+  /** Errors to throw on the next sends (one per send). */
+  failures: Error[] = [];
+  async send(email: OutgoingEmail) {
+    const f = this.failures.shift();
+    if (f) throw f;
+    this.sent.push(email);
+    return { messageId: `<msg-${this.sent.length}@test>` };
   }
 }

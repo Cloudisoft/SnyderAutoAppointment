@@ -6,6 +6,7 @@ import { AppShell } from './components/AppShell';
 import { EmptyState, Spinner } from './components/ui';
 import { applyTheme } from './lib/theme';
 import { CallsPage } from './pages/Calls';
+import { DashboardPage } from './pages/Dashboard';
 import { CampaignEditorPage } from './pages/CampaignEditor';
 import { LiveMonitorPage } from './pages/LiveMonitor';
 import { DispositionsSettings } from './pages/settings/Dispositions';
@@ -60,7 +61,7 @@ export function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route element={<RequireAuth><AppShell /></RequireAuth>}>
-              <Route index element={<EmptyState title="Dashboard coming soon" />} />
+              <Route index element={<RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission>} />
               <Route path="campaigns" element={<RequirePermission permission="campaigns.view"><CampaignsPage /></RequirePermission>} />
               <Route path="campaigns/:id" element={<RequirePermission permission="campaigns.view"><CampaignEditorPage /></RequirePermission>} />
               <Route path="calls" element={<RequirePermission permission="calls.view"><CallsPage /></RequirePermission>} />

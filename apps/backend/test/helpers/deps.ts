@@ -5,7 +5,7 @@ import type { AuthVerifier, SupabaseAdmin } from '../../src/integrations/supabas
 import { fixedClock } from '../../src/lib/clock';
 import { createLogger } from '../../src/lib/logger';
 import { createAuthUser, testPool } from './db';
-import { FakeOpenAi, FakeVapi, fakeCartesia, fakeTwilio } from './fakes';
+import { FakeMailer, FakeOpenAi, FakeVapi, fakeCartesia, fakeTwilio } from './fakes';
 
 export const TEST_WEBHOOK_SECRET = 'test-vapi-webhook-secret-0123456789';
 
@@ -54,6 +54,7 @@ export function testDeps(overrides: Partial<Deps> = {}): Deps {
     cartesia: fakeCartesia,
     twilio: fakeTwilio,
     openai: new FakeOpenAi(),
+    mailer: new FakeMailer(),
     ...overrides,
   };
 }
