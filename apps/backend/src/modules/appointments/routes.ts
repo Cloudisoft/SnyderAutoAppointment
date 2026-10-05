@@ -13,7 +13,7 @@ import { getOpenSlots } from './availability/service';
 import { recordAppointmentEvent } from './events';
 import { confirmAppointment, type AppointmentRow } from './finalize';
 import { cancelAppointment, rescheduleAppointment, rulesForAppointment } from './lifecycle';
-import { kickNotifications } from './notifications/dispatcher';
+import { kickNotifications, kickOrganizationNotifications, requeueFailedNotifications } from './notifications/dispatcher';
 import { enqueueNotification } from './notifications/queue';
 
 const idParam = z.object({ id: z.string().uuid() });
@@ -100,6 +100,27 @@ export async function registerAppointmentRoutes(app: FastifyInstance, deps: Deps
   }
 
   app.get('/api/appointments', { preHandler: view }, async (req) => listAppointments(deps, authOf(req).organizationId, req.query));
+
+  // Email health for the banner: failed emails and emails waiting for SMTP to be set up.
+  app.get('/api/appointment-notifications/summary', { preHandler: view }, async (req) => {
+    const { organizationId } = authOf(req);
+    const { rows } = await db.query<{ failed: number; waiting: number }>(
+      `select count(*) filter (where n.status = 'failed')::int as failed,
+              count(*) filter (where n.status = 'queued' and n.last_error like 'SMTP is not configured%')::int as waiting
+         from appointment_notifications n join appointments a on a.id = n.appointment_id
+        where n.organization_id = $1 and a.ends_at > $2`,
+      [organizationId, deps.clock.now().toISOString()],
+    );
+    return rows[0] ?? { failed: 0, waiting: 0 };
+  });
+
+  // One click instead of resending each appointment: retries every failed email for upcoming appointments.
+  app.post('/api/appointment-notifications/retry-failed', { preHandler: manage }, async (req) => {
+    const { organizationId } = authOf(req);
+    const requeued = await requeueFailedNotifications(db, organizationId, deps.clock.now());
+    await kickOrganizationNotifications(deps, organizationId);
+    return { requeued };
+  });
 
   app.get('/api/appointments/export', { preHandler: view }, async (req, reply) => {
     const { organizationId } = authOf(req);

@@ -12,6 +12,7 @@ export interface NotificationRow {
   appointment_version: number;
   recipient: string | null;
   attempts: number;
+  last_error?: string | null;
 }
 
 export type DeliveryResult =
@@ -37,6 +38,8 @@ export async function deliverEmailNotification(deps: Deps, n: NotificationRow): 
   if (kind === 'cancellation' && appt.status !== 'cancelled') return { status: 'skipped', reason: 'appointment is no longer cancelled' };
   if (kind !== 'cancellation' && n.appointment_version < appt.version) return { status: 'skipped', reason: 'superseded by a newer version' };
   if (kind === 'reminder' && appt.starts_at.getTime() <= deps.clock.now().getTime()) return { status: 'skipped', reason: 'appointment already started' };
+  // A confirmation or update that only gets through after the meeting is over is pointless.
+  if (kind !== 'cancellation' && appt.ends_at.getTime() <= deps.clock.now().getTime()) return { status: 'skipped', reason: 'appointment already over' };
 
   const to = n.recipient?.trim();
   if (!to) return { status: 'skipped', reason: 'no email address' };

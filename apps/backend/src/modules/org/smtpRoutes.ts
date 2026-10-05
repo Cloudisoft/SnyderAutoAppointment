@@ -6,6 +6,7 @@ import { loadOrgSmtpSettings, type SmtpSettings } from '../../integrations/maile
 import { deleteSecret, storeSecret } from '../../integrations/vault';
 import { badRequest, notFound } from '../../lib/errors';
 import { authenticate, authOf, requirePermission } from '../../plugins/auth';
+import { kickOrganizationNotifications, requeueFailedNotifications } from '../appointments/notifications/dispatcher';
 
 const SmtpInput = z.object({
   host: z.string().trim().min(1).max(253).regex(/^[A-Za-z0-9.-]+$/, 'Enter a host name such as smtp.example.com'),
@@ -47,6 +48,13 @@ export async function registerSmtpRoutes(app: FastifyInstance, deps: Deps) {
   const manage = [authenticate(deps), requirePermission('settings.manage')];
   const platformFallback = !!(deps.config.SMTP_HOST && deps.config.SMTP_FROM_EMAIL);
 
+  /** Emails that were waiting on (or failed because of) email setup go out now, in the background. */
+  const releaseBacklog = async (organizationId: string) => {
+    const n = await requeueFailedNotifications(db, organizationId, deps.clock.now());
+    void kickOrganizationNotifications(deps, organizationId);
+    return n;
+  };
+
   app.get('/api/settings/smtp', { preHandler: manage }, async (req) => {
     const { organizationId } = authOf(req);
     const { rows } = await db.query<SmtpRow>('select * from organization_smtp_settings where organization_id = $1', [organizationId]);
@@ -78,7 +86,8 @@ export async function registerSmtpRoutes(app: FastifyInstance, deps: Deps) {
       );
       return rows[0];
     });
-    return publicView(row, platformFallback);
+    const released = await releaseBacklog(organizationId);
+    return { ...publicView(row, platformFallback), released };
   });
 
   app.delete('/api/settings/smtp', { preHandler: manage }, async (req) => {
@@ -116,7 +125,8 @@ export async function registerSmtpRoutes(app: FastifyInstance, deps: Deps) {
         `update organization_smtp_settings set last_tested_at = now(), last_test_ok = true, last_test_error = null where organization_id = $1`,
         [organizationId],
       );
-      return { ok: true, to: recipient, messageId: res.messageId };
+      const released = await releaseBacklog(organizationId);
+      return { ok: true, to: recipient, messageId: res.messageId, released };
     } catch (err) {
       const message = (err as Error).message?.slice(0, 1000) || String(err);
       await db.query(

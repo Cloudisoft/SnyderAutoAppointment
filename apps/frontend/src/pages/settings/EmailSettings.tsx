@@ -56,11 +56,11 @@ export function EmailSettings() {
   const save = useMutation({
     mutationFn: () => {
       const { password, ...rest } = form;
-      return api.put<SmtpView>('/api/settings/smtp', { ...rest, ...(passwordTouched ? { password } : {}) });
+      return api.put<SmtpView & { released?: number }>('/api/settings/smtp', { ...rest, ...(passwordTouched ? { password } : {}) });
     },
     onSuccess: invalidate,
   });
-  const test = useMutation({ mutationFn: () => api.post<{ to: string }>('/api/settings/smtp/test', { to: testTo || undefined }), onSettled: invalidate });
+  const test = useMutation({ mutationFn: () => api.post<{ to: string; released?: number }>('/api/settings/smtp/test', { to: testTo || undefined }), onSettled: invalidate });
   const remove = useMutation({ mutationFn: () => api.del('/api/settings/smtp'), onSuccess: () => { setForm(empty); invalidate(); } });
   const s = q.data;
 
@@ -119,7 +119,14 @@ export function EmailSettings() {
             <Button variant="primary" loading={save.isPending}>Save</Button>
             {s?.configured && <Button type="button" variant="ghost" className="text-danger" loading={remove.isPending} onClick={() => remove.mutate()}>Remove</Button>}
           </div>
-          <div className="md:col-span-2"><ErrorText error={save.error ?? remove.error} /></div>
+          <div className="md:col-span-2">
+            {save.isSuccess && (
+              <p className="text-sm text-success animate-fade-in">
+                Saved.{save.data.released ? ` ${save.data.released} waiting email${save.data.released === 1 ? ' is' : 's are'} being sent now.` : ''}
+              </p>
+            )}
+            <ErrorText error={save.error ?? remove.error} />
+          </div>
         </form>
       </Card>
 
@@ -129,7 +136,12 @@ export function EmailSettings() {
             <Field label="Send to"><Input type="email" value={testTo} onChange={(e) => setTestTo(e.target.value)} /></Field>
             <Button loading={test.isPending} onClick={() => test.mutate()}>Send test</Button>
           </div>
-          {test.isSuccess && <p className="mt-3 text-sm text-success animate-fade-in">Test email sent to {test.data.to}. Check the inbox (and spam folder).</p>}
+          {test.isSuccess && (
+            <p className="mt-3 text-sm text-success animate-fade-in">
+              Test email sent to {test.data.to}. Check the inbox (and spam folder).
+              {test.data.released ? ` ${test.data.released} waiting email${test.data.released === 1 ? ' is' : 's are'} being sent now.` : ''}
+            </p>
+          )}
           <ErrorText error={test.error} />
           {s.last_tested_at && (
             <p className="mt-3 text-xs text-muted">
