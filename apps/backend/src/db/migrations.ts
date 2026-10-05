@@ -1,12 +1,22 @@
+import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type pg from 'pg';
 
-export const MIGRATIONS_DIR = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '../../../../supabase/migrations',
-);
+/** Finds supabase/migrations by walking up from this file (works from src/ and the dist/ bundle). */
+function findMigrationsDir(): string {
+  if (process.env.MIGRATIONS_DIR) return path.resolve(process.env.MIGRATIONS_DIR);
+  let dir = path.dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 8; i++) {
+    const candidate = path.join(dir, 'supabase', 'migrations');
+    if (existsSync(candidate)) return candidate;
+    dir = path.dirname(dir);
+  }
+  throw new Error('supabase/migrations not found; set MIGRATIONS_DIR');
+}
+
+export const MIGRATIONS_DIR = findMigrationsDir();
 
 const FILE_RE = /^(\d{4})_[a-z0-9_]+\.sql$/;
 

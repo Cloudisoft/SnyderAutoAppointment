@@ -37,6 +37,9 @@ const EnvSchema = z.object({
   SMTP_FROM_EMAIL: z.string().default(''),
   SMTP_FROM_NAME: z.string().default(''),
 
+  // Serve the built web app from this process (single-service deploys). Path to apps/frontend/dist.
+  FRONTEND_DIST_DIR: z.string().optional(),
+
   // Frontend origin used for links into the app (call details, appointment pages)
   APP_PUBLIC_URL: z.string().url().default('http://localhost:5173'),
 
