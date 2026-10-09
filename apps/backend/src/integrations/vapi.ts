@@ -52,7 +52,7 @@ export interface VapiAssistant {
   endCallMessage?: string;
   maxDurationSeconds?: number;
   analysisPlan?: { summaryPlan?: { enabled: boolean } };
-  artifactPlan?: { recordingEnabled?: boolean; transcriptPlan?: { enabled: boolean } };
+  artifactPlan?: { recordingEnabled?: boolean; recordingFormat?: 'mp3' | 'wav;l16'; transcriptPlan?: { enabled: boolean } };
   metadata?: Record<string, string>;
   /** Spoken phrases that make the platform hang up right after the assistant says them. */
   endCallPhrases?: string[];

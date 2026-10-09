@@ -1,10 +1,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { Readable } from 'node:stream';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Deps } from '../../deps';
 import { recordingUrlOf } from '../../integrations/vapi';
 import { notFound } from '../../lib/errors';
+import { wavToMp3 } from '../../lib/mp3';
 import { authenticate, authOf, requirePermission } from '../../plugins/auth';
 
 /**
@@ -53,6 +53,29 @@ export async function resolveRecordingUrl(deps: Deps, callId: string): Promise<s
   return fresh;
 }
 
+// Recently converted recordings, so replays and seeking don't re-download and re-encode.
+const mp3Cache = new Map<string, Buffer>();
+const MP3_CACHE_MAX = 25;
+
+/** The call's recording as MP3: downloaded from storage and converted from WAV when needed. */
+export async function recordingMp3(deps: Deps, callId: string): Promise<Buffer | null> {
+  const url = await resolveRecordingUrl(deps, callId);
+  if (!url) return null;
+  const cacheKey = `${callId}:${url.split('?')[0]}`;
+  const hit = mp3Cache.get(cacheKey);
+  if (hit) return hit;
+  const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+  if (!res.ok) throw new Error(`The recording could not be loaded (${res.status}).`);
+  const raw = Buffer.from(await res.arrayBuffer());
+  const type = res.headers.get('content-type') ?? '';
+  const isMp3 = /mpeg|mp3/i.test(type) || raw.subarray(0, 3).toString('ascii') === 'ID3' || (raw[0] === 0xff && (raw[1]! & 0xe0) === 0xe0);
+  const mp3 = isMp3 ? raw : wavToMp3(raw);
+  if (!mp3) throw new Error('The recording is in an unsupported audio format.');
+  mp3Cache.set(cacheKey, mp3);
+  if (mp3Cache.size > MP3_CACHE_MAX) mp3Cache.delete(mp3Cache.keys().next().value!);
+  return mp3;
+}
+
 export async function registerRecordingRoutes(app: FastifyInstance, deps: Deps) {
   const auth = authenticate(deps);
   const idParam = z.object({ id: z.string().uuid() });
@@ -72,21 +95,28 @@ export async function registerRecordingRoutes(app: FastifyInstance, deps: Deps) 
     if (!verify(deps.config.VAPI_WEBHOOK_SECRET, id, q.exp, q.sig, deps.clock.now())) {
       return reply.status(403).send({ error: 'forbidden', message: 'This recording link expired. Reopen the call to get a new one.' });
     }
-    const url = await resolveRecordingUrl(deps, id);
-    if (!url) return reply.status(404).send({ error: 'not_found', message: 'No recording is available for this call.' });
-    const range = req.headers.range;
-    const upstream = await fetch(url, { headers: range ? { range } : {}, signal: AbortSignal.timeout(60_000) });
-    if (!upstream.ok || !upstream.body) {
-      return reply.status(502).send({ error: 'upstream_error', message: `The recording could not be loaded (${upstream.status}).` });
+    let mp3: Buffer | null;
+    try {
+      mp3 = await recordingMp3(deps, id);
+    } catch (err) {
+      req.log.warn({ err, callId: id }, 'recording could not be served');
+      return reply.status(502).send({ error: 'upstream_error', message: (err as Error).message });
     }
-    reply.status(upstream.status);
-    for (const h of ['content-type', 'content-length', 'content-range', 'accept-ranges', 'etag', 'last-modified']) {
-      const v = upstream.headers.get(h);
-      if (v) reply.header(h, v);
-    }
-    if (!upstream.headers.get('content-type')) reply.header('content-type', 'audio/wav');
+    if (!mp3) return reply.status(404).send({ error: 'not_found', message: 'No recording is available for this call.' });
+    reply.header('content-type', 'audio/mpeg');
+    reply.header('accept-ranges', 'bytes');
     reply.header('cache-control', 'private, max-age=300');
-    reply.header('content-disposition', `${q.download ? 'attachment' : 'inline'}; filename="call-${id}.wav"`);
-    return reply.send(Readable.fromWeb(upstream.body as import('node:stream/web').ReadableStream));
+    reply.header('content-disposition', `${q.download ? 'attachment' : 'inline'}; filename="call-${id}.mp3"`);
+    // Range support so the player can seek.
+    const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? '');
+    if (m && (m[1] || m[2])) {
+      const size = mp3.length;
+      const start = m[1] ? Number(m[1]) : Math.max(0, size - Number(m[2]));
+      const end = m[1] && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+      if (start >= size || start > end) return reply.status(416).header('content-range', `bytes */${size}`).send();
+      reply.status(206).header('content-range', `bytes ${start}-${end}/${size}`);
+      return reply.send(mp3.subarray(start, end + 1));
+    }
+    return reply.send(mp3);
   });
 }

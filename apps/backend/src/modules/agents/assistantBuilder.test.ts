@@ -24,7 +24,7 @@ describe('buildAssistant', () => {
 
   it('sends GPT models to OpenAI and records every call', () => {
     expect(a.model).toMatchObject({ provider: 'openai', model: 'gpt-4o' });
-    expect(a.artifactPlan).toEqual({ recordingEnabled: true, transcriptPlan: { enabled: true } });
+    expect(a.artifactPlan).toEqual({ recordingEnabled: true, recordingFormat: 'mp3', transcriptPlan: { enabled: true } });
   });
 
   it('sends Claude Haiku 4.5 to Anthropic under the Vapi model id', () => {

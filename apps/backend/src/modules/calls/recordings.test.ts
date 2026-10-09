@@ -4,6 +4,7 @@ import { closeTestPool, describeDb, seedOrg, testPool, type SeededOrg } from '..
 import { bearerFor, testDeps } from '../../../test/helpers/deps';
 import { FakeVapi } from '../../../test/helpers/fakes';
 import { createCall, createLead, createPublishedCampaign } from '../../../test/helpers/fixtures';
+import { testWav } from '../../lib/mp3.test';
 
 describeDb('call recordings', () => {
   let org: SeededOrg;
@@ -22,14 +23,15 @@ describeDb('call recordings', () => {
     return c;
   }
 
-  /** Storage that only serves the fresh presigned URL; the stored one has expired. */
+  /** Storage that only serves the fresh presigned URL (a real 16 kHz WAV); the stored one has expired. */
   function stubStorage() {
     const requested: string[] = [];
+    const wav = testWav(16_000, 1);
     vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
       requested.push(url);
       if (url.startsWith('https://storage.test/fresh')) {
         const range = (init?.headers as Record<string, string> | undefined)?.range;
-        return new Response(range ? 'R' : 'RIFFwavdata', { status: range ? 206 : 200, headers: { 'content-type': 'audio/wav' } });
+        return new Response(range ? wav.subarray(0, 1) : wav, { status: range ? 206 : 200, headers: { 'content-type': 'audio/wav' } });
       }
       return new Response('expired', { status: 403 });
     });
@@ -48,11 +50,15 @@ describeDb('call recordings', () => {
     const path = link.replace('https://api.example.test', '');
     const audio = await app.inject({ method: 'GET', url: path });
     expect(audio.statusCode).toBe(200);
-    expect(audio.headers['content-type']).toBe('audio/wav');
-    expect(audio.body).toBe('RIFFwavdata');
+    expect(audio.headers['content-type']).toBe('audio/mpeg');
+    const mp3 = audio.rawPayload;
+    expect(mp3[0] === 0xff && (mp3[1]! & 0xe0) === 0xe0).toBe(true); // MPEG frame sync
+    const part = await app.inject({ method: 'GET', url: path, headers: { range: 'bytes=0-99' } });
+    expect(part.statusCode).toBe(206);
+    expect(part.headers['content-range']).toBe(`bytes 0-99/${mp3.length}`);
     const { rows } = await testPool().query('select recording_url from calls where id = $1', [callId]);
     expect(rows[0].recording_url).toBe('https://storage.test/fresh.wav');
-    expect((await app.inject({ method: 'GET', url: `${path}&download=1` })).headers['content-disposition']).toContain('attachment');
+    expect((await app.inject({ method: 'GET', url: `${path}&download=1` })).headers['content-disposition']).toContain('.mp3');
   });
 
   it('rejects tampered or expired links and other organizations', async () => {

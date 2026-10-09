@@ -210,3 +210,38 @@ h1, h2, .font-display {
   from { transform: scaleY(0); }
   to { transform: scaleY(1); }
 }
+
+/* Lines draw themselves in (pathLength=1 on the path). */
+.draw-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw-line 1100ms cubic-bezier(0.16, 1, 0.3, 1) 150ms forwards;
+}
+@keyframes draw-line {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Horizontal bars grow from the left. */
+.bar-grow-x {
+  transform-origin: left;
+  animation: bar-grow-x 800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes bar-grow-x {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* Soft moving sheen on the hero. */
+.hero-sheen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.06) 50%, transparent 70%);
+  background-size: 250% 100%;
+  animation: sheen 6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes sheen {
+  0%, 100% { background-position: 120% 0; }
+  50% { background-position: -20% 0; }
+}

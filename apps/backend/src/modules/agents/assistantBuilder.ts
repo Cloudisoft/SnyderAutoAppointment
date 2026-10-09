@@ -136,7 +136,7 @@ export function buildAssistant(input: BuildAssistantInput): VapiAssistant {
     ...(agent.end_call_message ? { endCallMessage: renderTemplate(agent.end_call_message, vars) } : {}),
     maxDurationSeconds: 900,
     analysisPlan: { summaryPlan: { enabled: true } },
-    artifactPlan: { recordingEnabled: true, transcriptPlan: { enabled: true } },
+    artifactPlan: { recordingEnabled: true, recordingFormat: 'mp3', transcriptPlan: { enabled: true } },
     endCallPhrases: END_CALL_PHRASES,
     monitorPlan: { listenEnabled: true, controlEnabled: true },
     metadata: { callId: input.callId, organizationId: input.organizationId },

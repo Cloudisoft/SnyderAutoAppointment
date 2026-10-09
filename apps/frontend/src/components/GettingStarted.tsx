@@ -11,7 +11,7 @@ const STEPS: { key: SetupKey; title: string; detail: string; to: string }[] = [
   { key: 'voice', title: 'Add a voice', detail: 'Pick how your AI sounds.', to: '/settings/voices' },
   { key: 'phone_number', title: 'Connect a phone number', detail: 'Import a Twilio number to call from.', to: '/settings/numbers' },
   { key: 'agent', title: 'Create an agent', detail: 'Prompt, voice and Claude Haiku 4.5.', to: '/settings/agents' },
-  { key: 'email', title: 'Set up email (SMTP)', detail: 'Confirmations and reminders go out from your address.', to: '/settings/email' },
+  { key: 'email', title: 'Set up email', detail: 'Confirmations and reminders go out automatically.', to: '/settings/email' },
   { key: 'appointment_type', title: 'Add an appointment type', detail: 'What prospects can book, and with whom.', to: '/settings/appointments' },
   { key: 'leads', title: 'Upload leads', detail: 'A CSV with at least a phone column.', to: '/leads' },
   { key: 'campaign', title: 'Launch a campaign', detail: 'Publish and start dialing.', to: '/campaigns' },
