@@ -19,6 +19,7 @@ import {
 import type { Deps } from './deps';
 import { systemClock } from './lib/clock';
 import { createLogger } from './lib/logger';
+import { runCallConfigSelfCheck } from './modules/health/selfCheck';
 
 const config = loadConfig();
 const logger = createLogger(config.LOG_LEVEL);
@@ -57,3 +58,10 @@ process.on('SIGTERM', () => void shutdown('SIGTERM'));
 process.on('SIGINT', () => void shutdown('SIGINT'));
 
 await app.listen({ port: config.PORT, host: '0.0.0.0' });
+
+// Prove the live calling account accepts the exact call setup (model, voice, tools, recording).
+if (config.VAPI_API_KEY) {
+  void runCallConfigSelfCheck(deps)
+    .then((r) => (r.ok ? logger.info({ selfCheck: r }, 'CALL CONFIG SELF-CHECK PASSED') : logger.error({ selfCheck: r }, 'CALL CONFIG SELF-CHECK FAILED')))
+    .catch((err) => logger.error({ err }, 'CALL CONFIG SELF-CHECK ERRORED'));
+}
