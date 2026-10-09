@@ -62,9 +62,19 @@ describe('appointment emails', () => {
     expect(e.icalEvent?.method).toBe('REQUEST');
   });
 
+  it('every email is branded with the Snyder Automation logo and the meeting link card', () => {
+    const base = ctx();
+    const withMeet = { ...base, type: { ...base.type, location_type: 'google_meet' }, meeting: { provider: 'google_meet', join_url: 'https://meet.google.com/abc-defg-hij' } };
+    const e = renderAppointmentEmail(withMeet, { kind: 'confirmation', template: DEFAULT_TEMPLATES.confirmation, link: 'https://book.example.test/a/tok', config, now: new Date('2026-10-12T14:00:00Z') });
+    expect(e.html).toContain('https://app.example.test/brand/logo-light.png');
+    expect(e.html).toContain('Join Google Meet');
+    expect(e.html).toContain('https://meet.google.com/abc-defg-hij');
+    expect(e.html).toContain('#FE5E01');
+  });
+
   it('host notice uses the host zone, lead details, summary and app links', () => {
     const e = renderAppointmentEmail(ctx(), { kind: 'host_notice', template: DEFAULT_TEMPLATES.host_notice, link: null, config, now });
-    expect(e.subject).toBe('New appointment: Ada Lovelace on Tuesday, October 13, 2026 at 11:00 AM');
+    expect(e.subject).toBe('★ New booking: Ada Lovelace, Tuesday, October 13, 2026 at 11:00 AM');
     expect(e.text).toContain('Phone: +12125550142');
     expect(e.text).toContain('Call summary: Interested in the gold plan.');
     expect(e.text).toContain('https://app.example.test/calls?call=call-1');

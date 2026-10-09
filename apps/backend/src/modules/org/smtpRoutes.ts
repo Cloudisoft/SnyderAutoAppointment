@@ -5,6 +5,7 @@ import type { Deps } from '../../deps';
 import { API_TRANSPORTS } from '../../integrations/emailApi';
 import { envSmtpSettings, explainSmtpError, loadOrgSmtpSettings, type SmtpSettings } from '../../integrations/mailer';
 import { UpstreamError } from '../../lib/http';
+import { layout } from '../appointments/email/brand';
 import { deleteSecret, storeSecret } from '../../integrations/vault';
 import { badRequest, notFound } from '../../lib/errors';
 import { authenticate, authOf, requirePermission } from '../../plugins/auth';
@@ -134,7 +135,15 @@ export async function registerSmtpRoutes(app: FastifyInstance, deps: Deps) {
         to: recipient,
         subject: `Test email from ${org[0]?.name ?? 'Snyder'}`,
         text: `Your email settings work. Appointment emails will be sent from ${settings.fromEmail}.`,
-        html: `<p>Your email settings work.</p><p>Appointment emails will be sent from <strong>${settings.fromEmail.replace(/[<>&"]/g, '')}</strong>.</p>`,
+        html: layout({
+          logoUrl: `${deps.config.APP_PUBLIC_URL.replace(/\/$/, '')}/brand/logo-light.png`,
+          businessName: org[0]?.name ?? 'Snyder Automation',
+          preheader: 'Your email settings work.',
+          pill: { text: '✓ Test email', tone: 'success' },
+          heading: 'Your email settings work',
+          inner: `<p style="margin:0 0 14px">Appointment confirmations, reminders and updates will be sent from <strong>${settings.fromEmail.replace(/[<>&"]/g, '')}</strong>.</p>`,
+          footer: 'You received this because someone sent a test from Settings → Email.',
+        }),
       });
       await db.query(
         `update organization_smtp_settings set last_tested_at = now(), last_test_ok = true, last_test_error = null where organization_id = $1`,

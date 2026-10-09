@@ -6,6 +6,7 @@ import type { OutgoingEmail } from '../../../integrations/mailer';
 import { escapeHtml, leadVars, renderTemplate, type TemplateVars } from '../../../lib/templates';
 import { loadVersionSnapshot } from '../../campaigns/service';
 import { appointmentSettingsOf } from '../settings';
+import { button, detailsTable, joinCard, layout, link as brandLink, whenBlock, type Tone } from './brand';
 import { buildIcs } from './ics';
 import { googleCalendarUrl, outlookCalendarUrl } from './calendarLinks';
 
@@ -19,38 +20,48 @@ export interface EmailTemplate {
 export const DEFAULT_TEMPLATES: Record<EmailKind, EmailTemplate> = {
   confirmation: { subject: DEFAULT_CONFIRMATION_SUBJECT, body: DEFAULT_CONFIRMATION_BODY },
   reschedule: {
-    subject: 'Updated: {{appointment_date}} at {{appointment_time}} with {{host_name}}',
+    subject: '↻ New time: {{appointment_type}} on {{appointment_date}} at {{appointment_time}}',
     body: `Hi {{first_name}},
 
-Your appointment with {{business_name}} has moved to {{appointment_date}} at {{appointment_time}} ({{time_zone}}) with {{host_name}}.
+Your {{appointment_type}} with {{host_name}} has a new time. The updated calendar invite is attached, so your calendar will update automatically.
 
 Where: {{location}}
 
-You can manage it any time with your personal link: {{appointment_link}}`,
+Need another change? Use your personal link: {{appointment_link}}
+
+Thanks,
+{{business_name}}`,
   },
   cancellation: {
-    subject: 'Cancelled: {{appointment_date}} at {{appointment_time}}',
+    subject: 'Cancelled: {{appointment_type}} on {{appointment_date}}',
     body: `Hi {{first_name}},
 
-Your appointment with {{business_name}} on {{appointment_date}} at {{appointment_time}} ({{time_zone}}) has been cancelled.
+Your {{appointment_type}} with {{host_name}} on {{appointment_date}} at {{appointment_time}} has been cancelled, and it has been removed from your calendar.
 
-If you'd like to find another time, just reply to this email.`,
+Want to pick another time? Just reply to this email and we'll sort it out.
+
+{{business_name}}`,
   },
   reminder: {
-    subject: 'Reminder: {{appointment_date}} at {{appointment_time}} with {{host_name}}',
+    subject: '⏰ Reminder: {{appointment_type}} with {{host_name}} at {{appointment_time}}',
     body: `Hi {{first_name}},
 
-A quick reminder of your appointment with {{business_name}} on {{appointment_date}} at {{appointment_time}} ({{time_zone}}) with {{host_name}}.
+A friendly reminder that your {{appointment_type}} with {{host_name}} is coming up.
 
 Where: {{location}}
 
-Need to change it? {{appointment_link}}`,
+Can't make it? Reschedule or cancel with your personal link: {{appointment_link}}
+
+See you soon,
+{{business_name}}`,
   },
   host_notice: {
-    subject: 'New appointment: {{lead_name}} on {{appointment_date}} at {{appointment_time}}',
+    subject: '★ New booking: {{lead_name}}, {{appointment_date}} at {{appointment_time}}',
     body: `Hi {{host_name}},
 
-{{lead_name}} booked a {{appointment_type}} with you for {{appointment_date}} at {{appointment_time}} ({{time_zone}}) through the {{campaign_name}} campaign.`,
+{{lead_name}} just booked an appointment with you ({{appointment_type}}) via {{campaign_name}}. The details and the call summary are below.
+
+Where: {{location}}`,
   },
 };
 
@@ -174,15 +185,6 @@ export function emailVars(ctx: AppointmentEmailContext, zone: string, link: stri
   };
 }
 
-const BRAND = '#2563eb';
-
-function button(href: string, label: string, primary = false): string {
-  const style = primary
-    ? `background:${BRAND};color:#ffffff;border:1px solid ${BRAND};`
-    : 'background:#ffffff;color:#111827;border:1px solid #d1d5db;';
-  return `<a href="${escapeHtml(href)}" style="${style}display:inline-block;padding:10px 16px;border-radius:6px;font-weight:600;text-decoration:none;margin:4px 8px 4px 0">${escapeHtml(label)}</a>`;
-}
-
 /** Turns a rendered plain-text body into simple paragraphs; the appointment link becomes a link. */
 function bodyToHtml(template: string, vars: TemplateVars, link: string | null): string {
   const LINK_MARK = '\u0000LINK\u0000';
@@ -194,27 +196,10 @@ function bodyToHtml(template: string, vars: TemplateVars, link: string | null): 
     .map((p) => {
       const html = escapeHtml(p)
         .replace(/\n/g, '<br>')
-        .replace(LINK_MARK, link ? `<a href="${escapeHtml(link)}" style="color:${BRAND}">${escapeHtml(link)}</a>` : '');
-      return `<p style="margin:0 0 16px">${html}</p>`;
+        .replace(LINK_MARK, link ? brandLink(link) : '');
+      return `<p style="margin:0 0 14px">${html}</p>`;
     })
     .join('\n');
-}
-
-function layout(inner: string, footer: string): string {
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#f3f4f6">
-<div style="max-width:560px;margin:0 auto;padding:24px 16px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#111827">
-<div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;padding:24px">${inner}</div>
-<p style="color:#6b7280;font-size:12px;margin:16px 4px 0">${footer}</p>
-</div></body></html>`;
-}
-
-function detailsTable(rows: [string, string][]): string {
-  return `<table role="presentation" style="width:100%;border-collapse:collapse;margin:8px 0 20px;background:#f9fafb;border-radius:8px">${rows
-    .map(
-      ([k, v]) =>
-        `<tr><td style="padding:8px 12px;color:#6b7280;width:110px;vertical-align:top">${escapeHtml(k)}</td><td style="padding:8px 12px">${escapeHtml(v)}</td></tr>`,
-    )
-    .join('')}</table>`;
 }
 
 export interface RenderOptions {
@@ -264,7 +249,6 @@ export function renderAppointmentEmail(ctx: AppointmentEmailContext, o: RenderOp
   const joinUrl = ctx.meeting?.join_url;
   if (joinUrl && !cancelled) {
     const label = ctx.type.location_type === 'zoom' ? 'Join Zoom meeting' : ctx.type.location_type === 'google_meet' ? 'Join Google Meet' : 'Join meeting';
-    buttons.push(button(joinUrl, label, true));
     textLinks.push(`${label}: ${joinUrl}`);
   }
   if (o.link && !cancelled) {
@@ -291,15 +275,29 @@ export function renderAppointmentEmail(ctx: AppointmentEmailContext, o: RenderOp
       .join('\n');
   }
 
-  const heading = { confirmation: 'Your appointment is confirmed', reschedule: 'Your appointment has moved', cancellation: 'Your appointment was cancelled', reminder: 'Appointment reminder', host_notice: 'New appointment booked' }[o.kind];
-  const html = layout(
-    `<h1 style="font-size:20px;margin:0 0 16px">${escapeHtml(heading)}</h1>
+  const look: Record<EmailKind, { heading: string; pill: string; tone: Tone; when: string }> = {
+    confirmation: { heading: 'Your appointment is confirmed', pill: '✓ Confirmed', tone: 'success', when: 'Your appointment' },
+    reschedule: { heading: 'Your appointment has moved', pill: '↻ Rescheduled', tone: 'brand', when: 'New time' },
+    cancellation: { heading: 'Your appointment was cancelled', pill: '✕ Cancelled', tone: 'danger', when: 'Cancelled appointment' },
+    reminder: { heading: 'See you soon', pill: '⏰ Reminder', tone: 'brand', when: 'Coming up' },
+    host_notice: { heading: `New booking: ${vars.lead_name as string}`, pill: '★ New appointment', tone: 'success', when: 'Booked for' },
+  };
+  const k = look[o.kind];
+  const logoUrl = `${o.config.APP_PUBLIC_URL.replace(/\/$/, '')}/brand/logo-light.png`;
+  const html = layout({
+    logoUrl,
+    businessName: ctx.businessName,
+    preheader: `${ctx.type.name} · ${vars.appointment_date as string} at ${vars.appointment_time as string}`,
+    pill: { text: k.pill, tone: k.tone },
+    heading: k.heading,
+    inner: `${whenBlock({ label: k.when, date: vars.appointment_date as string, time: vars.appointment_time as string, zone: vars.time_zone as string, strike: cancelled })}
+${joinUrl && !cancelled ? joinCard({ provider: ctx.type.location_type, url: joinUrl }) : ''}
 ${bodyToHtml(o.template.body, vars, o.link)}
 ${detailsTable(details)}
 ${hostExtra}
-<div>${buttons.join('')}</div>`,
-    escapeHtml(`${ctx.businessName}${o.link && !forHost ? ' · This link is personal to you; please don’t forward it.' : ''}`),
-  );
+<div style="margin-top:4px">${buttons.join('')}</div>`,
+    footer: escapeHtml(`Sent by ${ctx.businessName}${o.link && !forHost ? ' · This link is personal to you; please don’t forward it.' : ''}`),
+  });
   const text = [
     renderTemplate(o.template.body, vars),
     '',
