@@ -58,7 +58,7 @@ describeDb('public appointment page API', () => {
     expect(moved.statusCode).toBe(200);
     expect(moved.json()).toMatchObject({ status: 'rescheduled', starts_at: target.start_utc });
 
-    const resched = mailer.sent.filter((m) => m.to === 'move@example.com' && m.subject.startsWith('Updated'));
+    const resched = mailer.sent.filter((m) => m.to === 'move@example.com' && m.subject.includes('New time'));
     expect(resched).toHaveLength(1);
     expect(resched[0]!.icalEvent!.content).toMatch(/SEQUENCE:2/);
 
@@ -73,7 +73,7 @@ describeDb('public appointment page API', () => {
 
     const cancelled = await app.inject({ method: 'POST', url: `/public/appointments/${token}/cancel`, payload: { reason: 'Conflict came up' } });
     expect(cancelled.json()).toMatchObject({ status: 'cancelled', can_modify: false });
-    const cancelMail = mailer.sent.filter((m) => m.to === 'move@example.com' && m.subject.startsWith('Cancelled'));
+    const cancelMail = mailer.sent.filter((m) => m.to === 'move@example.com' && m.subject.includes('Cancelled'));
     expect(cancelMail).toHaveLength(1);
     expect(cancelMail[0]!.icalEvent!.content).toMatch(/METHOD:CANCEL/);
     const { rows } = await testPool().query(

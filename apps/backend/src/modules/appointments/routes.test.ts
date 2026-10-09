@@ -57,7 +57,7 @@ describeDb('appointments app API', () => {
     const res = await app.inject({ method: 'POST', url: `/api/appointments/${rows[0]!.id}/confirm`, headers: bearerFor(org.ownerId), payload: {} });
     expect(res.statusCode).toBe(200);
     expect(res.json().status).toBe('confirmed');
-    expect(mailer.sent.filter((m) => m.to === 'review@example.com' && m.subject.startsWith('Confirmed'))).toHaveLength(1);
+    expect(mailer.sent.filter((m) => m.to === 'review@example.com' && m.subject.includes('Confirmed'))).toHaveLength(1);
     const lead = await testPool().query('select status from leads where id = $1', [leadId]);
     expect(lead.rows[0].status).toBe('appointment_booked');
   });

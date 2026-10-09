@@ -67,7 +67,7 @@ describeDb('email recovery without per-appointment resends', () => {
     });
     expect(saved.statusCode).toBe(200);
     await new Promise((r) => setTimeout(r, 200));
-    for (let i = 0; i < 3; i++) expect(mailer.sent.filter((m) => m.to === `p${i}@example.com` && m.subject.startsWith('Confirmed'))).toHaveLength(1);
+    for (let i = 0; i < 3; i++) expect(mailer.sent.filter((m) => m.to === `p${i}@example.com` && m.subject.includes('Confirmed'))).toHaveLength(1);
   });
 
   it('one bulk action retries every failed email for upcoming appointments', async () => {

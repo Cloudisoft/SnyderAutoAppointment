@@ -57,7 +57,7 @@ describeDb('appointment background jobs', () => {
     await dispatchNotificationsBatch(deps);
     const toProspect = mailer.sent.filter((m) => m.to === 'one@example.com');
     expect(toProspect).toHaveLength(1);
-    expect(toProspect[0]!.subject).toMatch(/^Confirmed: /);
+    expect(toProspect[0]!.subject).toMatch(/^✓ Confirmed: /);
     expect(toProspect[0]!.text).toMatch(/https:\/\/book\.example\.test\/a\/[A-Za-z0-9_-]{43}/);
     expect(mailer.sent.filter((m) => m.to === 'jordan@acme.test' && m.headers?.['X-Snyder-Appointment'] === appt.id)).toHaveLength(1);
     // Only the hash is stored.
@@ -118,14 +118,14 @@ describeDb('appointment background jobs', () => {
     expect(rows[0].send_after.getTime()).toBe(appt.starts_at.getTime() - 24 * 3_600_000);
 
     await dispatchNotificationsBatch(deps);
-    expect(mailer.sent.filter((m) => m.to === 'remind@example.com' && m.subject.startsWith('Reminder'))).toHaveLength(0);
+    expect(mailer.sent.filter((m) => m.to === 'remind@example.com' && m.subject.includes('Reminder'))).toHaveLength(0);
     clock.set(new Date(appt.starts_at.getTime() - 24 * 3_600_000 + 1000));
     await dispatchNotificationsBatch(deps);
     clock.set(new Date(appt.starts_at.getTime() - 3_600_000 + 1000));
     await reminderSchedulerBatch(deps);
     await dispatchNotificationsBatch(deps);
     await dispatchNotificationsBatch(deps);
-    const reminders = mailer.sent.filter((m) => m.to === 'remind@example.com' && m.subject.startsWith('Reminder'));
+    const reminders = mailer.sent.filter((m) => m.to === 'remind@example.com' && m.subject.includes('Reminder'));
     expect(reminders).toHaveLength(2);
   });
 

@@ -39,16 +39,16 @@ export type LocationType = (typeof LOCATION_TYPES)[number];
 export const HOST_STRATEGIES = ['specific_host', 'round_robin', 'least_booked'] as const;
 export type HostStrategy = (typeof HOST_STRATEGIES)[number];
 
-export const DEFAULT_CONFIRMATION_SUBJECT = 'Confirmed: {{appointment_date}} at {{appointment_time}} with {{host_name}}';
+export const DEFAULT_CONFIRMATION_SUBJECT = '✓ Confirmed: {{appointment_type}} with {{host_name}} on {{appointment_date}}';
 export const DEFAULT_CONFIRMATION_BODY = `Hi {{first_name}},
 
-Thanks for speaking with {{agent_name}} from {{business_name}}. Your appointment is confirmed for {{appointment_date}} at {{appointment_time}} ({{time_zone}}) with {{host_name}}.
+Thanks for speaking with {{agent_name}} from {{business_name}}. You're all set: your {{appointment_type}} with {{host_name}} is booked, and it's already in the calendar invite attached to this email.
 
 Where: {{location}}
 
-Need to change it? Use your personal link to reschedule or cancel: {{appointment_link}}
+Plans changed? You can reschedule or cancel any time with your personal link: {{appointment_link}}
 
-See you then,
+Looking forward to it,
 {{business_name}}`;
 
 /** Per-campaign appointment settings (campaign draft key "appointments", frozen into each version). */
