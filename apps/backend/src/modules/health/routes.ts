@@ -10,6 +10,7 @@ import { buildAssistant, serverUrl, type AssistantExtension, type AssistantLead 
 import type { CallPipeline } from '../calls/pipeline';
 import { resolveSnapshot } from '../campaigns/service';
 import { loadTwilioCredentials } from '../telephony/routes';
+import { lastCallConfigCheck } from './selfCheck';
 import { accessTokenFor, clientFor, getConnection, MeetingSetupError, PROVIDER_LABELS, PROVIDERS } from '../meetings/connections';
 
 export interface CheckResult {
@@ -78,7 +79,9 @@ export async function registerHealthRoutes(app: FastifyInstance, deps: Deps, pip
         };
       }),
     );
+    const callSetup = lastCallConfigCheck();
     return {
+      callSetup: callSetup ? { ok: callSetup.ok, message: neutralize(callSetup.message) } : { ok: false, message: 'Not checked yet (runs when the server starts).' },
       meetings: meetings.filter(Boolean),
       vapi,
       cartesia,

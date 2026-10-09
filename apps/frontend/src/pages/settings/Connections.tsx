@@ -10,6 +10,7 @@ interface Health {
   email: Check;
   webhook: Check;
   meetings: (Check & { name: string })[];
+  callSetup: Check;
 }
 
 export function ConnectionsSettings() {
@@ -17,6 +18,7 @@ export function ConnectionsSettings() {
   const rows: [string, string, Check][] = q.data
     ? [
         ['Calling service', 'Places the calls, runs the conversation and live transcripts', q.data.vapi],
+        ['Call setup', 'AI model (Claude Haiku 4.5), voice, tools and recording accepted by the calling service', q.data.callSetup],
         ['Voice service', 'AI voices', q.data.cartesia],
         ...q.data.twilio.map((t): [string, string, Check] => [`Twilio · ${t.name}`, 'Phone numbers and caller ID', t]),
         ['Email (SMTP)', 'Confirmations, reminders and reschedule links', q.data.email],
