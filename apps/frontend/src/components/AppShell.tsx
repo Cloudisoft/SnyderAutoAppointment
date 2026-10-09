@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from 'react';
+import { useIsFetching, useIsMutating } from '@tanstack/react-query';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { getTheme, setTheme, type Theme } from '../lib/theme';
@@ -30,6 +31,8 @@ export function AppShell() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const [theme, setThemeState] = useState<Theme>(getTheme());
+  // First loads and saves only; background polling stays quiet.
+  const busy = useIsFetching({ predicate: (q) => q.state.data === undefined }) + useIsMutating() > 0;
   const items = NAV.filter((n) => (Array.isArray(n.permission) ? n.permission.some(can) : can(n.permission)));
 
   const nav = (
@@ -83,12 +86,13 @@ export function AppShell() {
         <div className="ml-auto flex items-center gap-2">
           <NotificationBell />
           <span
-            className="grid h-9 w-9 place-items-center rounded-full bg-primary font-display text-sm font-bold text-primary-fg shadow-sm"
+            className="grid h-9 w-9 place-items-center rounded-full bg-primary font-display text-sm font-bold text-primary-fg shadow-sm ring-0 ring-primary/25 transition-shadow duration-300 hover:ring-4"
             title={session?.user.email ?? ''}
           >
             {userInitial}
           </span>
         </div>
+        <div aria-hidden className="top-progress" data-active={busy}><span /></div>
       </header>
       <div className="md:grid md:grid-cols-[248px_1fr]">
         <aside

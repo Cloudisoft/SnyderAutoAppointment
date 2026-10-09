@@ -247,3 +247,75 @@ h1, h2, .font-display {
   0%, 100% { background-position: 120% 0; }
   50% { background-position: -20% 0; }
 }
+
+/* ---- Light, layout-safe motion: only opacity, color and transforms that never shift other content. ---- */
+
+/* Table rows fade in (opacity only), lightly staggered. */
+.row-hover > tr { animation: fade-in 280ms ease-out both; }
+.row-hover > tr:nth-child(2) { animation-delay: 25ms; }
+.row-hover > tr:nth-child(3) { animation-delay: 50ms; }
+.row-hover > tr:nth-child(4) { animation-delay: 75ms; }
+.row-hover > tr:nth-child(5) { animation-delay: 100ms; }
+.row-hover > tr:nth-child(6) { animation-delay: 125ms; }
+.row-hover > tr:nth-child(n + 7) { animation-delay: 150ms; }
+
+/* A soft light sweep across primary buttons on hover. */
+.btn-sheen { position: relative; overflow: hidden; isolation: isolate; }
+.btn-sheen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 35%, rgb(255 255 255 / 0.35) 50%, transparent 65%);
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+.btn-sheen:hover:not(:disabled)::after { transition: transform 650ms cubic-bezier(0.16, 1, 0.3, 1); transform: translateX(120%); }
+
+/* Accent line that draws in under page titles. */
+.title-accent {
+  display: block;
+  height: 3px;
+  width: 2.5rem;
+  margin-top: 0.35rem;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 30%, transparent));
+  transform-origin: left;
+  animation: bar-grow-x 700ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both;
+}
+
+/* Thin progress bar under the top bar while data loads. */
+.top-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 250ms ease;
+}
+.top-progress[data-active='true'] { opacity: 1; }
+.top-progress > span {
+  display: block;
+  height: 100%;
+  width: 35%;
+  border-radius: 9999px;
+  background: var(--primary);
+  animation: progress 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Bell rings briefly when new notifications arrive. */
+@keyframes ring {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(14deg); }
+  40% { transform: rotate(-10deg); }
+  60% { transform: rotate(6deg); }
+  80% { transform: rotate(-3deg); }
+}
+.animate-ring { display: inline-block; transform-origin: 50% 10%; animation: ring 700ms ease-in-out both; }
+
+/* Checkboxes use the brand color and give a small press response. */
+input[type='checkbox'] { accent-color: var(--primary); cursor: pointer; transition: transform 120ms ease; }
+input[type='checkbox']:active { transform: scale(0.88); }
