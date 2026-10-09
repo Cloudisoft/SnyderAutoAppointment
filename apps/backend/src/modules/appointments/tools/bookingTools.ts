@@ -121,8 +121,8 @@ export const bookAppointmentTool: ToolDefinition = {
     if (new Date(offer.startUtc).getTime() < now.getTime() + 5 * 60_000) {
       return 'That time has already passed or is too soon. Call check_availability again for fresh options.';
     }
-    const { rows: typeRows } = await deps.db.query<{ buffer_before_minutes: number; buffer_after_minutes: number }>(
-      'select buffer_before_minutes, buffer_after_minutes from appointment_types where id = $1',
+    const { rows: typeRows } = await deps.db.query<{ buffer_before_minutes: number; buffer_after_minutes: number; location_type: string }>(
+      'select buffer_before_minutes, buffer_after_minutes, location_type from appointment_types where id = $1',
       [ctx.settings.appointment_type_id],
     );
     const type = typeRows[0];
@@ -184,7 +184,9 @@ export const bookAppointmentTool: ToolDefinition = {
         metadata: { appointmentId: booked.id, startUtc: offer.startUtc },
       });
       const emailPart = email ? ` to ${spokenEmail(email)}` : '';
-      return `Booked: ${offer.spokenLabel} with ${hostName}. Tell them: "You're all set for ${offer.spokenLabel}. A confirmation email with a link to reschedule or cancel is on its way${emailPart}." Then thank them, wrap up and end the call.`;
+      const video = type.location_type === 'zoom' ? 'the Zoom link' : type.location_type === 'google_meet' ? 'the Google Meet link' : null;
+      const what = video ? `A confirmation email with ${video} and a link to reschedule or cancel` : 'A confirmation email with a link to reschedule or cancel';
+      return `Booked: ${offer.spokenLabel} with ${hostName}. Tell them: "You're all set for ${offer.spokenLabel}. ${what} is on its way${emailPart}." Then thank them, say goodbye and end the call.`;
     } catch (err) {
       if (!isPgError(err, PG.exclusionViolation)) throw err;
       // Someone else took the slot a moment ago: offer fresh alternatives instead of failing.

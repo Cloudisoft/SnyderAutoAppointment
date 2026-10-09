@@ -27,6 +27,7 @@ const ctx = (over: Partial<AppointmentEmailContext['appointment']> = {}): Appoin
   agentName: 'Katie',
   settings: null,
   callSummary: 'Interested in the gold plan.',
+  meeting: null,
 });
 const config = { APPOINTMENTS_PUBLIC_URL: 'https://book.example.test', APP_PUBLIC_URL: 'https://app.example.test', SMTP_FROM_EMAIL: 'hello@acme.test' };
 const now = new Date('2026-10-12T14:00:00Z');

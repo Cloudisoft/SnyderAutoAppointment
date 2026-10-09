@@ -58,6 +58,13 @@ const EnvSchema = z.object({
   APPOINTMENT_REMINDER_INTERVAL_MS: intMs(60_000),
   APPOINTMENT_NO_SHOW_INTERVAL_MS: intMs(300_000),
   SMS_APPOINTMENTS_ENABLED: bool,
+
+  // Calendar and video meetings (OAuth apps owned by the platform; each organization connects its own account)
+  GOOGLE_CLIENT_ID: z.string().default(''),
+  GOOGLE_CLIENT_SECRET: z.string().default(''),
+  ZOOM_CLIENT_ID: z.string().default(''),
+  ZOOM_CLIENT_SECRET: z.string().default(''),
+  MEETING_SYNC_INTERVAL_MS: intMs(60_000),
 });
 
 export type Config = z.infer<typeof EnvSchema>;

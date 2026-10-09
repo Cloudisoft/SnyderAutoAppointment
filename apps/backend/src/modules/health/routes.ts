@@ -10,6 +10,7 @@ import { buildAssistant, serverUrl, type AssistantExtension, type AssistantLead 
 import type { CallPipeline } from '../calls/pipeline';
 import { resolveSnapshot } from '../campaigns/service';
 import { loadTwilioCredentials } from '../telephony/routes';
+import { accessTokenFor, clientFor, getConnection, MeetingSetupError, PROVIDER_LABELS, PROVIDERS } from '../meetings/connections';
 
 export interface CheckResult {
   ok: boolean;
@@ -17,7 +18,7 @@ export interface CheckResult {
 }
 
 const describe = (err: unknown) =>
-  err instanceof UpstreamError ? err.userMessage : err instanceof HttpError ? err.message : neutralize((err as Error)?.message || 'Unknown error');
+  err instanceof UpstreamError ? err.userMessage : err instanceof HttpError || err instanceof MeetingSetupError ? err.message : neutralize((err as Error)?.message || 'Unknown error');
 
 async function check(fn: () => Promise<string>): Promise<CheckResult> {
   try {
@@ -65,7 +66,20 @@ export async function registerHealthRoutes(app: FastifyInstance, deps: Deps, pip
       ),
     ]);
     const s = smtp.rows[0];
+    const meetings = await Promise.all(
+      PROVIDERS.map(async (provider) => {
+        if (!(await getConnection(db, organizationId, provider))) return null;
+        return {
+          name: PROVIDER_LABELS[provider],
+          ...(await check(async () => {
+            const a = await clientFor(deps, provider).account(await accessTokenFor(deps, organizationId, provider));
+            return `Connected · ${a.email}`;
+          })),
+        };
+      }),
+    );
     return {
+      meetings: meetings.filter(Boolean),
       vapi,
       cartesia,
       twilio: twilio.length ? twilio : [{ id: null, name: 'Twilio', ok: false, message: 'No Twilio account added yet (Settings → Phone numbers)' }],
@@ -91,6 +105,9 @@ export async function registerHealthRoutes(app: FastifyInstance, deps: Deps, pip
     const resolved = await resolveSnapshot(db, organizationId, rows[0]);
     if (!resolved.snapshot) return { ok: false, errors: resolved.errors, warnings: resolved.warnings };
     const snapshot = resolved.snapshot;
+    if (!snapshot.agent.transfer_number) {
+      resolved.warnings.push('No live transfer number on this agent, so the AI cannot transfer calls to a person. Add one in Settings → Agents.');
+    }
 
     const leadRow = await db.query<AssistantLead & { time_zone: string | null }>(
       'select id, first_name, last_name, email, company, phone_e164, custom_fields, time_zone from leads where organization_id = $1 order by created_at desc limit 1',

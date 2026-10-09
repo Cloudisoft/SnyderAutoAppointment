@@ -18,6 +18,7 @@ import { LiveMonitorPage } from './pages/LiveMonitor';
 import { DispositionsSettings } from './pages/settings/Dispositions';
 import { ConnectionsSettings } from './pages/settings/Connections';
 import { EmailSettings } from './pages/settings/EmailSettings';
+import { IntegrationsSettings } from './pages/settings/Integrations';
 import { CampaignsPage } from './pages/Campaigns';
 import { LeadsPage } from './pages/Leads';
 import { AgentsSettings } from './pages/settings/Agents';
@@ -117,6 +118,7 @@ export function App() {
                 <Route index element={<SettingsIndex />} />
                 <Route path="organization" element={<RequirePermission permission="org.manage"><OrganizationSettings /></RequirePermission>} />
                 <Route path="users" element={<RequirePermission permission="users.manage"><UsersRoles /></RequirePermission>} />
+                <Route path="integrations" element={<RequirePermission permission="settings.manage"><IntegrationsSettings /></RequirePermission>} />
                 <Route path="connections" element={<RequirePermission permission="settings.manage"><ConnectionsSettings /></RequirePermission>} />
                 <Route path="email" element={<RequirePermission permission="settings.manage"><EmailSettings /></RequirePermission>} />
                 <Route path="voices" element={<RequirePermission permission="settings.manage"><VoicesSettings /></RequirePermission>} />

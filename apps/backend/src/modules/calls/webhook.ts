@@ -3,6 +3,7 @@ import type { Deps } from '../../deps';
 import { verifyVapiSecret } from '../../plugins/vapiAuth';
 import { VAPI_WEBHOOK_PATH } from '../agents/assistantBuilder';
 import { addCallEvent } from './events';
+import { watchAssistantLine } from './liveControl';
 import { fromEndOfCallReport } from './normalize';
 import { handleCallEnded, type CallPipeline } from './pipeline';
 import { executeToolCall, GENERIC_TOOL_FALLBACK } from './tools';
@@ -90,6 +91,7 @@ export async function registerVapiWebhook(app: FastifyInstance, deps: Deps, pipe
             role: msg.role === 'assistant' ? 'assistant' : 'user',
             content: msg.transcript,
           });
+          if (msg.role === 'assistant' && !call.end_processed_at) watchAssistantLine(deps, call, msg.transcript);
         }
         return reply.send({});
       }
@@ -114,6 +116,8 @@ export async function registerVapiWebhook(app: FastifyInstance, deps: Deps, pipe
         const data = fromEndOfCallReport(msg as Parameters<typeof fromEndOfCallReport>[0]);
         const call = await findCall(deps, msg);
         const result = await handleCallEnded(deps, pipeline, data, { callId: call?.id });
+        // Live listen/control links stop being useful (and must not linger) once the call is over.
+        if (call) await deps.db.query('delete from call_monitors where call_id = $1', [call.id]);
         if (result.status === 'unknown_call') req.log.warn({ vapiCallId: data.vapiCallId }, 'end-of-call report for unknown call');
         return reply.send({ ok: true, status: result.status });
       }

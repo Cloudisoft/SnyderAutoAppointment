@@ -18,8 +18,18 @@ export interface VapiFunctionTool {
 
 export type VapiTool =
   | VapiFunctionTool
-  | { type: 'endCall' }
-  | { type: 'transferCall'; destinations: { type: 'number'; number: string; message?: string }[] };
+  | { type: 'endCall'; messages?: VapiFunctionTool['messages'] }
+  | {
+      type: 'transferCall';
+      destinations: { type: 'number'; number: string; message?: string; description?: string }[];
+      messages?: VapiFunctionTool['messages'];
+    };
+
+/** Live supervision commands sent to a call's control URL. */
+export type VapiControl =
+  | { type: 'say'; content: string; endCallAfterSpoken?: boolean }
+  | { type: 'end-call' }
+  | { type: 'transfer'; destination: { type: 'number'; number: string }; content?: string };
 
 /** Transient (per-call) assistant configuration. */
 export interface VapiAssistant {
@@ -44,6 +54,10 @@ export interface VapiAssistant {
   analysisPlan?: { summaryPlan?: { enabled: boolean } };
   artifactPlan?: { recordingEnabled?: boolean; transcriptPlan?: { enabled: boolean } };
   metadata?: Record<string, string>;
+  /** Spoken phrases that make the platform hang up right after the assistant says them. */
+  endCallPhrases?: string[];
+  /** Live listen (audio websocket) and control (say / end / transfer) URLs on the created call. */
+  monitorPlan?: { listenEnabled: boolean; controlEnabled: boolean };
 }
 
 export interface VapiCallRequest {
@@ -78,7 +92,9 @@ export interface VapiCall {
 }
 
 export interface VapiClient {
-  createCall(req: VapiCallRequest): Promise<{ id: string; status?: string }>;
+  createCall(req: VapiCallRequest): Promise<{ id: string; status?: string; monitor?: { listenUrl?: string; controlUrl?: string } }>;
+  /** Sends a live control command (say, end call, transfer) to a call's control URL. */
+  controlCall(controlUrl: string, command: VapiControl): Promise<void>;
   getCall(id: string): Promise<VapiCall>;
   importTwilioNumber(opts: {
     number: string;
@@ -109,6 +125,21 @@ export function createVapiClient(apiKey: string): VapiClient {
   return {
     createCall: (req) =>
       fetchJson('Vapi', `${VAPI_BASE}/call`, { method: 'POST', headers: headers(), body: JSON.stringify(req) }),
+    async controlCall(controlUrl, command) {
+      if (!/^https:\/\//.test(controlUrl)) throw new HttpError(400, 'Invalid control URL');
+      let res: Response;
+      try {
+        res = await fetch(controlUrl, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(command),
+          signal: AbortSignal.timeout(8_000),
+        });
+      } catch (err) {
+        throw new UpstreamError('Vapi', 0, `could not connect (${(err as Error).message})`);
+      }
+      if (!res.ok) throw new UpstreamError('Vapi', res.status, await res.text());
+    },
     getCall: (id) => fetchJson('Vapi', `${VAPI_BASE}/call/${encodeURIComponent(id)}`, { headers: headers() }),
     async importTwilioNumber(o) {
       const payload = {

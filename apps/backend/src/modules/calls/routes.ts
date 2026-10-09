@@ -1,7 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Deps } from '../../deps';
-import { notFound } from '../../lib/errors';
+import { badRequest, notFound } from '../../lib/errors';
+import { toE164 } from '../../lib/phone';
+import { getMonitor, sendControl, transferNumberFor } from './liveControl';
 import { authenticate, authOf, requirePermission } from '../../plugins/auth';
 import { neutralize } from '../../lib/http';
 import { sendTableExport, type ExportColumn } from '../../lib/tableExport';
@@ -153,7 +155,10 @@ export async function registerCallRoutes(app: FastifyInstance, deps: Deps) {
     const { organizationId } = authOf(req);
     const { rows } = await db.query(
       `select c.id, c.status, c.started_at, c.created_at, c.to_number, c.campaign_id, cp.name as campaign_name,
-              l.first_name, l.last_name
+              l.first_name, l.last_name, c.transferred,
+              exists (select 1 from call_monitors m where m.call_id = c.id and m.listen_url is not null) as can_listen,
+              exists (select 1 from call_monitors m where m.call_id = c.id and m.control_url is not null) as can_control,
+              (select v.snapshot->'agent'->>'transfer_number' from campaign_versions v where v.id = c.campaign_version_id) as transfer_number
          from calls c
          left join leads l on l.id = c.lead_id
          left join campaigns cp on cp.id = c.campaign_id
@@ -162,6 +167,47 @@ export async function registerCallRoutes(app: FastifyInstance, deps: Deps) {
       [organizationId],
     );
     return rows;
+  });
+
+  // Live listen: the audio stream link for a call in progress (never stored client-side).
+  app.get('/api/monitor/calls/:id/listen', { preHandler: [auth, requirePermission('monitor.control')] }, async (req) => {
+    const { organizationId } = authOf(req);
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const monitor = await getMonitor(deps, id, organizationId);
+    if (!monitor?.listen_url) throw notFound('Live listening is not available for this call (it may have ended).');
+    return { listenUrl: monitor.listen_url };
+  });
+
+  // Supervisor controls on a live call: speak a line, transfer to a person, or hang up.
+  app.post('/api/monitor/calls/:id/control', { preHandler: [auth, requirePermission('monitor.control')] }, async (req) => {
+    const { organizationId } = authOf(req);
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const body = z
+      .discriminatedUnion('action', [
+        z.object({ action: z.literal('say'), content: z.string().trim().min(1).max(500) }),
+        z.object({ action: z.literal('end') }),
+        z.object({ action: z.literal('transfer'), number: z.string().max(30).optional() }),
+      ])
+      .parse(req.body);
+    const monitor = await getMonitor(deps, id, organizationId);
+    if (!monitor?.control_url) throw notFound('This call is no longer live.');
+    if (body.action === 'say') {
+      await sendControl(deps, monitor, { type: 'say', content: body.content }, `supervisor said: ${body.content}`);
+    } else if (body.action === 'end') {
+      await sendControl(deps, monitor, { type: 'end-call' }, 'supervisor ended the call');
+    } else {
+      const raw = body.number?.trim() || (await transferNumberFor(deps, id));
+      const number = raw ? toE164(raw) : null;
+      if (!number) throw badRequest('Enter a valid phone number to transfer to (or set a live transfer number on the agent).');
+      await sendControl(
+        deps,
+        monitor,
+        { type: 'transfer', destination: { type: 'number', number }, content: 'One moment while I connect you.' },
+        `supervisor transferred the call to ${number}`,
+      );
+      await db.query('update calls set transferred = true where id = $1', [id]);
+    }
+    return { ok: true };
   });
 
   app.get('/api/monitor/calls/:id/events', { preHandler: [auth, requirePermission('monitor.view')] }, async (req) => {

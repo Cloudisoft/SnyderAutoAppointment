@@ -43,6 +43,19 @@ in `.env.example` under "Auto Appointments".
 - **Settings → Connections** runs live checks of Vapi, Cartesia, Twilio and SMTP with the server's keys.
 - **Campaign → Test call setup** sends the campaign's exact assistant config to Vapi (create + delete a temporary assistant, no call placed) and shows what Vapi accepted or rejected.
 
+## Live calls: listen, transfer, hang up
+
+- Every call is placed with live listen/control enabled. **Live monitor** lets supervisors (`monitor.control`) listen to the audio in the browser, have the AI say a line, transfer the call to any number, or end it.
+- Transfers: the agent's *Live transfer number* gives the AI a transfer tool, and the prompt tells it to use it when the person asks for a human. If the AI only *says* "let me transfer your call", the server completes the transfer a few seconds later.
+- Hang-up: the AI ends the call with its end-call tool after saying goodbye; the platform also hangs up on goodbye phrases, and the server ends a call that is still open ~7 s after a goodbye with no reply.
+
+## Calendar, Google Meet and Zoom
+
+- **Settings → Calendar & meetings**: connect Google (Calendar + Meet) and/or Zoom with OAuth. Tokens are stored encrypted in Vault; Zoom's rotating refresh tokens are persisted on every refresh.
+- Appointment types can be *Google Meet* or *Zoom*. When a booking is confirmed, the server creates the Meet/Zoom meeting and (if Google is connected) a Google Calendar event with the prospect and host invited, then sends the confirmation email with a **Join** button, the link in the .ics invite and on the prospect's appointment page.
+- Reschedules update the event/meeting; cancellations delete them. Temporary provider errors hold the email for a few retries; a missing/revoked connection sends the email without the link and notifies admins. A `meeting-sync` job retries failures.
+- Requires the platform OAuth apps: `GOOGLE_CLIENT_ID/SECRET`, `ZOOM_CLIENT_ID/SECRET` (see `.env.example`).
+
 ## Bulk actions and exports
 
 - Leads: select rows (or "select all N matching") → move to list, remove from list, add to / remove from campaign, set status, delete. Leads on a live call are never deleted.

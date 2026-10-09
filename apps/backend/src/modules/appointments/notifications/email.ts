@@ -1,7 +1,22 @@
 import type { Deps } from '../../../deps';
 import { isEmailSuppressed } from '../../leads/routes';
 import { appointmentLink, loadEmailContext, renderAppointmentEmail, resolveTemplate, type EmailKind } from '../email/render';
+import { MeetingSetupError } from '../../meetings/connections';
+import { recordMeetingFailure, syncAppointmentMeeting } from '../../meetings/sync';
 import { mintAppointmentToken } from '../tokens';
+
+/** Meeting-link problems that might clear up hold the email for a couple of retries, then it goes without the link. */
+const MEETING_WAIT_ATTEMPTS = 3;
+
+async function ensureMeetingForEmail(deps: Deps, n: NotificationRow): Promise<void> {
+  try {
+    await syncAppointmentMeeting(deps, n.appointment_id);
+  } catch (err) {
+    await recordMeetingFailure(deps, n.appointment_id, err).catch(() => undefined);
+    if (err instanceof MeetingSetupError || n.attempts >= MEETING_WAIT_ATTEMPTS) return; // send now; the link follows in an update
+    throw new Error(`Waiting for the meeting link: ${(err as Error).message}`);
+  }
+}
 
 export interface NotificationRow {
   id: string;
@@ -29,6 +44,7 @@ const ACTIVE = ['confirmed', 'rescheduled'];
 
 /** Renders and sends one email notification. Throws on SMTP failure (the dispatcher retries). */
 export async function deliverEmailNotification(deps: Deps, n: NotificationRow): Promise<DeliveryResult> {
+  await ensureMeetingForEmail(deps, n);
   const ctx = await loadEmailContext(deps.db, n.appointment_id);
   const kind = emailKindFor(n.type);
   const appt = ctx.appointment;

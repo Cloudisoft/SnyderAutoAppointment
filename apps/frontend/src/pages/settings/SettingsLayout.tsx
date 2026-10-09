@@ -6,6 +6,7 @@ export const SETTINGS_NAV = [
   { to: 'organization', label: 'Organization', permission: 'org.manage' },
   { to: 'users', label: 'Users & roles', permission: 'users.manage' },
   { to: 'connections', label: 'Connections', permission: 'settings.manage' },
+  { to: 'integrations', label: 'Calendar & meetings', permission: 'settings.manage' },
   { to: 'email', label: 'Email (SMTP)', permission: 'settings.manage' },
   { to: 'voices', label: 'Voices', permission: 'settings.manage' },
   { to: 'numbers', label: 'Phone numbers', permission: 'settings.manage' },

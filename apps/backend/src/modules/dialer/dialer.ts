@@ -142,6 +142,13 @@ export async function placeCall(deps: Deps, pipeline: CallPipeline, p: PlacedCal
       `update calls set vapi_call_id = $2, status = 'queued', booking_tools_enabled = $3 where id = $1`,
       [p.callId, res.id, exts.some((e) => e.name === 'appointments')],
     );
+    if (res.monitor?.listenUrl || res.monitor?.controlUrl) {
+      await deps.db.query(
+        `insert into call_monitors(call_id, organization_id, listen_url, control_url) values ($1, $2, $3, $4)
+         on conflict (call_id) do update set listen_url = excluded.listen_url, control_url = excluded.control_url`,
+        [p.callId, p.organizationId, res.monitor.listenUrl ?? null, res.monitor.controlUrl ?? null],
+      );
+    }
   };
 
   try {

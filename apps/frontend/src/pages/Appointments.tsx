@@ -8,6 +8,7 @@ import { Badge, Button, Card, Drawer, EmptyState, ErrorText, Field, Input, Modal
 import { ExportButtons } from '../components/ExportButtons';
 import { api } from '../lib/api';
 import { titleCase } from '../lib/format';
+import { toast } from '../lib/toast';
 import type { Host } from './settings/AppointmentSettings';
 
 export interface AppointmentListRow {
@@ -38,6 +39,7 @@ interface AppointmentDetail extends AppointmentListRow {
   location_type: string;
   location_details: string | null;
   version: number;
+  meeting: { provider: string | null; join_url: string | null; status: string; last_error: string | null; calendar: boolean } | null;
   events: { id: number; type: string; actor_type: string; actor_email: string | null; metadata: Record<string, unknown>; created_at: string }[];
   notifications: { id: string; type: string; channel: string; status: string; recipient: string | null; attempts: number; last_error: string | null; sent_at: string | null; send_after: string }[];
 }
@@ -261,6 +263,7 @@ function AppointmentDetails({ id, canManage }: { id: string; canManage: boolean 
         {a.notes && (<><dt className="text-muted">Notes</dt><dd>{a.notes}</dd></>)}
         {a.cancel_reason && (<><dt className="text-muted">Cancel reason</dt><dd>{a.cancel_reason}</dd></>)}
       </dl>
+      <MeetingCard a={a} canManage={canManage} />
       {a.call_summary && <Card title="Call summary"><p className="text-sm">{a.call_summary}</p></Card>}
       {canManage && (
         <div className="flex flex-wrap gap-2">
@@ -352,5 +355,37 @@ function ConfirmModal({ appt, onClose, onDone }: { appt: AppointmentDetail; onCl
       <Field label="Prospect email"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
       <ErrorText error={m.error} />
     </Modal>
+  );
+}
+
+/** Calendar event / video meeting status for an appointment, with a manual re-sync. */
+function MeetingCard({ a, canManage }: { a: AppointmentDetail; canManage: boolean }) {
+  const qc = useQueryClient();
+  const video = a.location_type === 'google_meet' || a.location_type === 'zoom';
+  const sync = useMutation({
+    mutationFn: () => api.post(`/api/appointments/${a.id}/meeting/sync`),
+    onSuccess: () => {
+      toast.success('Calendar and meeting link updated');
+      void qc.invalidateQueries({ queryKey: ['appointment', a.id] });
+    },
+  });
+  if (!video && !a.meeting) return null;
+  const m = a.meeting;
+  const label = a.location_type === 'zoom' ? 'Zoom' : a.location_type === 'google_meet' ? 'Google Meet' : 'Calendar';
+  return (
+    <Card title={`${label} ${video ? 'meeting' : 'event'}`}>
+      <div className="space-y-2 text-sm">
+        {m?.join_url ? (
+          <a className="font-semibold text-primary underline break-all" href={m.join_url} target="_blank" rel="noreferrer">{m.join_url}</a>
+        ) : video ? (
+          <p className="text-muted">No meeting link yet.</p>
+        ) : null}
+        {m?.calendar && <p className="text-muted">✓ On the connected Google Calendar</p>}
+        {m?.status === 'failed' && <p className="text-danger">{m.last_error}</p>}
+        {canManage && ['confirmed', 'rescheduled'].includes(a.status) && (
+          <Button size="sm" loading={sync.isPending} onClick={() => sync.mutate()}>{m?.join_url || m?.calendar ? 'Re-sync' : 'Create meeting link'}</Button>
+        )}
+      </div>
+    </Card>
   );
 }
