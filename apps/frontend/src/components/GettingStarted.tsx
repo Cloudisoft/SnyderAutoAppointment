@@ -37,7 +37,7 @@ export function GettingStarted() {
   const next = STEPS.find((s) => !q.data[s.key]);
 
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5 animate-page-in">
+    <section className="rounded-2xl border border-border bg-surface p-5 animate-soft-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-extrabold">Get set up</h2>

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -127,7 +127,7 @@ interface Upcoming { id: string; starts_at: string; lead_time_zone: string; firs
 
 function Panel({ title, action, children, style }: { title: string; action?: ReactNode; children: ReactNode; style?: CSSProperties }) {
   return (
-    <section className="rounded-2xl border border-border bg-surface p-4 animate-page-in lift" style={style}>
+    <section className="rounded-2xl border border-border bg-surface p-4 animate-soft-in lift" style={style}>
       <header className="mb-3 flex items-center justify-between gap-2">
         <h2 className="font-display font-bold">{title}</h2>
         {action}
@@ -144,7 +144,7 @@ export function DashboardPage() {
   const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: () => api.get<{ id: string; name: string }[]>('/api/campaigns') });
   const qs = new URLSearchParams({ days });
   if (campaign) qs.set('campaign_id', campaign);
-  const q = useQuery({ queryKey: ['dashboard', qs.toString()], queryFn: () => api.get<DashboardData>(`/api/dashboard?${qs}`) });
+  const q = useQuery({ queryKey: ['dashboard', qs.toString()], queryFn: () => api.get<DashboardData>(`/api/dashboard?${qs}`), placeholderData: keepPreviousData });
   const live = useQuery({ queryKey: ['monitor-live'], queryFn: () => api.get<LiveCall[]>('/api/monitor/live'), enabled: can('monitor.view'), refetchInterval: 10_000, meta: { silent: true } });
   const upcoming = useQuery({
     queryKey: ['upcoming-appointments'],
@@ -161,8 +161,8 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="brand-glow hero-sheen relative overflow-hidden rounded-3xl p-6 text-white md:p-8 animate-page-in">
-        <img src="/brand/mark-dark.png" alt="" aria-hidden className="pointer-events-none absolute -right-8 -top-8 h-48 w-auto opacity-15 animate-float" />
+      <section className="brand-glow hero-sheen relative overflow-hidden rounded-3xl p-6 text-white md:p-8 animate-soft-in">
+        <img src="/brand/mark-dark.png" alt="" aria-hidden className="pointer-events-none absolute -right-8 -top-8 h-48 w-auto opacity-15" />
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div>
             <p className="text-sm font-medium text-white/60">{greeting()}</p>

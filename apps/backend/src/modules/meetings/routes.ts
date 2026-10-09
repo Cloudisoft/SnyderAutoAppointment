@@ -27,7 +27,29 @@ export async function registerMeetingRoutes(app: FastifyInstance, deps: Deps) {
   const { db, config } = deps;
   const auth = authenticate(deps);
   const manage = [auth, requirePermission('settings.manage')];
-  const settingsUrl = (q: Record<string, string>) => `${config.APP_PUBLIC_URL.replace(/\/$/, '')}/settings/integrations?${new URLSearchParams(q)}`;
+  // The app can be served from several domains (Railway + custom); send people back to the one
+  // they started from so their session is there, but only to domains this deployment owns.
+  const allowedOrigins = new Set(
+    [config.APP_PUBLIC_URL, config.APPOINTMENTS_PUBLIC_URL, config.BACKEND_PUBLIC_URL, ...config.CORS_ORIGINS.split(',')]
+      .map((u) => {
+        try {
+          return new URL(u.trim()).origin;
+        } catch {
+          return null;
+        }
+      })
+      .filter((o): o is string => !!o),
+  );
+  const appOrigin = (candidate?: string) => {
+    try {
+      const o = candidate ? new URL(candidate).origin : null;
+      if (o && allowedOrigins.has(o)) return o;
+    } catch {
+      /* fall through */
+    }
+    return config.APP_PUBLIC_URL.replace(/\/$/, '');
+  };
+  const settingsUrl = (q: Record<string, string>, origin?: string) => `${appOrigin(origin)}/settings/integrations?${new URLSearchParams(q)}`;
 
   app.get('/api/integrations', { preHandler: manage }, async (req) => {
     const { organizationId } = authOf(req);
@@ -54,11 +76,12 @@ export async function registerMeetingRoutes(app: FastifyInstance, deps: Deps) {
   app.post('/api/integrations/:provider/connect', { preHandler: manage }, async (req) => {
     const { organizationId, userId } = authOf(req);
     const { provider } = providerParam.parse(req.params);
+    const { return_to } = z.object({ return_to: z.string().max(300).optional() }).parse(req.body ?? {});
     const client = clientFor(deps, provider);
     if (!client.configured()) {
       throw new HttpError(503, `${PROVIDER_LABELS[provider]} is not set up on the server yet (missing OAuth app credentials).`, 'not_configured');
     }
-    const state = signState(config.VAPI_WEBHOOK_SECRET, { organizationId, userId, provider }, deps.clock.now());
+    const state = signState(config.VAPI_WEBHOOK_SECRET, { organizationId, userId, provider, returnTo: appOrigin(return_to) }, deps.clock.now());
     return { url: client.authorizeUrl(redirectUri(config, provider), state) };
   });
 
@@ -66,9 +89,9 @@ export async function registerMeetingRoutes(app: FastifyInstance, deps: Deps) {
   app.get('/api/integrations/:provider/callback', async (req, reply) => {
     const { provider } = providerParam.parse(req.params);
     const q = z.object({ code: z.string().optional(), state: z.string().optional(), error: z.string().optional() }).parse(req.query);
-    const fail = (message: string) => reply.redirect(settingsUrl({ provider, error: message }));
-    if (q.error) return fail(q.error === 'access_denied' ? 'Access was not granted.' : `The provider returned: ${q.error}`);
     const who = q.state ? verifyState(config.VAPI_WEBHOOK_SECRET, q.state, provider, deps.clock.now()) : null;
+    const fail = (message: string) => reply.redirect(settingsUrl({ provider, error: message }, who?.returnTo));
+    if (q.error) return fail(q.error === 'access_denied' ? 'Access was not granted.' : `The provider returned: ${q.error}`);
     if (!who || !q.code) return fail('This connection link expired or is invalid. Please try again.');
     const allowed = await db.query(
       `select 1 from memberships m join role_permissions rp on rp.role_id = m.role_id
@@ -81,7 +104,7 @@ export async function registerMeetingRoutes(app: FastifyInstance, deps: Deps) {
       const tokens = await client.exchangeCode(q.code, redirectUri(config, provider));
       const account = await client.account(tokens.accessToken);
       await saveConnection(deps, { organizationId: who.organizationId, provider, userId: who.userId, tokens, account });
-      return reply.redirect(settingsUrl({ connected: provider }));
+      return reply.redirect(settingsUrl({ connected: provider }, who.returnTo));
     } catch (err) {
       req.log.warn({ err, provider }, 'oauth callback failed');
       return fail(err instanceof MeetingSetupError ? err.message : `Could not connect: ${describe(err)}`);

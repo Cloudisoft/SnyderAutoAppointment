@@ -48,7 +48,7 @@ export function IntegrationsSettings() {
   }, [params, setParams, qc]);
 
   const connect = useMutation({
-    mutationFn: (provider: Integration['provider']) => api.post<{ url: string }>(`/api/integrations/${provider}/connect`),
+    mutationFn: (provider: Integration['provider']) => api.post<{ url: string }>(`/api/integrations/${provider}/connect`, { return_to: window.location.origin }),
     onSuccess: ({ url }) => window.location.assign(url),
   });
   const remove = useMutation({

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest';
 import { buildApp } from '../../app';
 import { closeTestPool, describeDb, seedOrg, testPool, type SeededOrg } from '../../../test/helpers/db';
-import { bearerFor, testDeps } from '../../../test/helpers/deps';
+import { bearerFor, testConfig, testDeps } from '../../../test/helpers/deps';
 import { FakeGoogle, FakeMailer, FakeZoom } from '../../../test/helpers/fakes';
 import { bookAndConfirm, createBookingCampaign } from '../../../test/helpers/fixtures';
 import { accessTokenFor, clearTokenCache, saveConnection, signState } from './connections';
@@ -60,6 +60,17 @@ describeDb('Google Meet and Zoom meetings', () => {
     expect((await app.inject({ method: 'DELETE', url: '/api/integrations/google', headers: h })).statusCode).toBe(200);
     const after = (await app.inject({ method: 'GET', url: '/api/integrations', headers: h })).json();
     expect(after.find((p: { provider: string }) => p.provider === 'google').connected).toBe(false);
+  });
+
+  it('returns to the domain the admin started from (custom domain), never to an unknown one', async () => {
+    const app = await buildApp(testDeps({ google, zoom, mailer, config: testConfig({ CORS_ORIGINS: 'https://app.example.test,https://portal.acme.test' }) }));
+    const h = bearerFor(org.ownerId);
+    const go = async (return_to: string) => {
+      const url = new URL((await app.inject({ method: 'POST', url: '/api/integrations/google/connect', headers: h, payload: { return_to } })).json().url);
+      return (await app.inject({ method: 'GET', url: `/api/integrations/google/callback?code=c&state=${encodeURIComponent(url.searchParams.get('state')!)}` })).headers.location;
+    };
+    expect(await go('https://portal.acme.test')).toBe('https://portal.acme.test/settings/integrations?connected=google');
+    expect(await go('https://evil.example')).toBe('https://app.example.test/settings/integrations?connected=google');
   });
 
   it('rejects a callback for a user without permission and expired states', async () => {
