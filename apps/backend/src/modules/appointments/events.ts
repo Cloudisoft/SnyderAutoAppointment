@@ -11,7 +11,10 @@ export type AppointmentEventType =
   | 'email_failed'
   | 'hold_released'
   | 'needs_review'
-  | 'notification_skipped';
+  | 'notification_skipped'
+  | 'meeting_created'
+  | 'meeting_updated'
+  | 'meeting_failed';
 
 export async function recordAppointmentEvent(
   db: DbClient,

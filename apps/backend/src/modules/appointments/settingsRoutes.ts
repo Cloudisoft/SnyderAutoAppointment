@@ -58,6 +58,7 @@ export function sampleEmailContext(org: { name: string }, now: Date): Appointmen
     agentName: 'Katie',
     settings: null,
     callSummary: 'Interested and asked for a 30 minute intro.',
+    meeting: null,
   };
 }
 

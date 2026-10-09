@@ -85,6 +85,8 @@ export interface AppointmentEmailContext {
   agentName: string;
   settings: AppointmentSettings | null;
   callSummary: string | null;
+  /** Video meeting created for this appointment (Google Meet / Zoom), if any. */
+  meeting: { provider: string | null; join_url: string | null } | null;
 }
 
 export async function loadEmailContext(db: DbClient, appointmentId: string): Promise<AppointmentEmailContext> {
@@ -92,13 +94,14 @@ export async function loadEmailContext(db: DbClient, appointmentId: string): Pro
     `select a.*, t.name as t_name, t.duration_minutes, t.location_type, t.location_details, t.description as t_description,
             h.display_name, h.email as host_email, h.time_zone as host_tz, o.name as org_name,
             l.first_name, l.last_name, l.email as lead_email, l.phone_e164, l.company, l.custom_fields,
-            c.summary as call_summary
+            c.summary as call_summary, m.provider as meeting_provider, m.join_url as meeting_join_url, m.status as meeting_status
        from appointments a
        join appointment_types t on t.id = a.appointment_type_id
        join appointment_hosts h on h.id = a.host_id
        join organizations o on o.id = a.organization_id
        left join leads l on l.id = a.lead_id
        left join calls c on c.id = a.call_id
+       left join appointment_meetings m on m.appointment_id = a.id
       where a.id = $1`,
     [appointmentId],
   );
@@ -118,12 +121,18 @@ export async function loadEmailContext(db: DbClient, appointmentId: string): Pro
     agentName: snapshot?.agent.voice.name ?? '',
     settings: snapshot ? appointmentSettingsOf(snapshot) : null,
     callSummary: r.call_summary ?? null,
+    meeting: r.meeting_status && r.meeting_status !== 'deleted' ? { provider: r.meeting_provider, join_url: r.meeting_join_url } : null,
   };
 }
 
 export function locationText(ctx: AppointmentEmailContext): string {
   const d = ctx.type.location_details?.trim();
+  const join = ctx.meeting?.join_url;
   switch (ctx.type.location_type) {
+    case 'google_meet':
+      return join ? `Google Meet: ${join}` : 'Google Meet (the link will be emailed to you)';
+    case 'zoom':
+      return join ? `Zoom: ${join}` : 'Zoom (the link will be emailed to you)';
     case 'phone':
       return d ? `Phone call: ${d}` : `Phone call. ${ctx.host.display_name} will call you${ctx.lead?.phone_e164 ? ` at ${ctx.lead.phone_e164}` : ''}.`;
     case 'video':
@@ -246,14 +255,20 @@ export function renderAppointmentEmail(ctx: AppointmentEmailContext, o: RenderOp
     title,
     start: ctx.appointment.starts_at,
     end: ctx.appointment.ends_at,
-    details: [ctx.type.description, o.link ? `Manage: ${o.link}` : null].filter(Boolean).join('\n'),
-    location: vars.location as string,
+    details: [ctx.meeting?.join_url ? `Join: ${ctx.meeting.join_url}` : null, ctx.type.description, o.link ? `Manage: ${o.link}` : null].filter(Boolean).join('\n'),
+    location: ctx.meeting?.join_url ?? (vars.location as string),
   };
   const cancelled = o.kind === 'cancellation';
   const buttons: string[] = [];
   const textLinks: string[] = [];
+  const joinUrl = ctx.meeting?.join_url;
+  if (joinUrl && !cancelled) {
+    const label = ctx.type.location_type === 'zoom' ? 'Join Zoom meeting' : ctx.type.location_type === 'google_meet' ? 'Join Google Meet' : 'Join meeting';
+    buttons.push(button(joinUrl, label, true));
+    textLinks.push(`${label}: ${joinUrl}`);
+  }
   if (o.link && !cancelled) {
-    buttons.push(button(o.link, 'Manage appointment', true));
+    buttons.push(button(o.link, 'Manage appointment', !joinUrl));
     textLinks.push(`Manage appointment: ${o.link}`);
   }
   if (!cancelled) {

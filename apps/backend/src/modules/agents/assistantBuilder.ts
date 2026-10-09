@@ -66,7 +66,23 @@ const BASE_RULES = [
   'If the person asks not to be called again, apologise, call mark_do_not_call, confirm they will not be contacted again, then end the call.',
   'If you reach voicemail or an automated system, end the call without leaving a message.',
   'Never read out URLs, symbols or codes; describe them in plain words instead.',
+  'When the conversation is finished (everything is handled, the person is not interested, or they say goodbye), say one short goodbye such as "Thanks for your time, goodbye." and then immediately call the endCall tool. Never stay on the line after saying goodbye.',
 ];
+
+const TRANSFER_RULE =
+  'If the person asks to speak with a real person, a manager or the team, or is ready to talk to someone now, say "Sure, let me transfer your call." and in the same turn call the transferCall tool. Saying it is not enough: you must call the tool.';
+const NO_TRANSFER_RULE =
+  'If the person asks to speak with a real person, explain that nobody is available to take the call right now and offer to have someone call them back.';
+
+/** The platform hangs up right after the assistant says any of these, as a backstop to the endCall tool. */
+export const END_CALL_PHRASES = ['goodbye', 'good bye', 'bye for now', 'have a great day', 'have a wonderful day', 'have a nice day'];
+
+/** Assistant lines that announce a transfer; the server completes the transfer if the tool call does not follow. */
+export const TRANSFER_ANNOUNCEMENT =
+  /\b(?:let me|i(?:'| a)?m going to|i will|i'll|i am going to)\s+(?:now\s+)?(?:transfer|connect|put through)\s+(?:you|your call)\b|\btransferring (?:you|your call)\b/i;
+
+/** Assistant lines that close the call; the server hangs up if the call is still open shortly after. */
+export const GOODBYE_LINE = /\b(?:good\s?bye|bye(?: for now)?|have a (?:great|wonderful|nice) (?:day|evening|afternoon))\b[.!]?\s*$/i;
 
 /** Builds the transient Vapi assistant for one outbound call. */
 export function buildAssistant(input: BuildAssistantInput): VapiAssistant {
@@ -86,14 +102,17 @@ export function buildAssistant(input: BuildAssistantInput): VapiAssistant {
   if (agent.transfer_number) {
     tools.push({
       type: 'transferCall',
-      destinations: [{ type: 'number', number: agent.transfer_number, message: 'One moment while I connect you.' }],
+      destinations: [
+        { type: 'number', number: agent.transfer_number, message: 'One moment while I connect you.', description: 'The team member who takes live calls' },
+      ],
+      messages: [{ type: 'request-start', content: 'Sure, let me transfer your call.' }],
     });
   }
   for (const ext of extensions) tools.push(...ext.tools);
 
   const sections = [
     renderTemplate(agent.system_prompt, vars).trim(),
-    `# Call rules\n${BASE_RULES.map((r) => `- ${r}`).join('\n')}`,
+    `# Call rules\n${[...BASE_RULES, agent.transfer_number ? TRANSFER_RULE : NO_TRANSFER_RULE].map((r) => `- ${r}`).join('\n')}`,
     ...extensions.flatMap((e) => e.promptSections),
   ].filter(Boolean);
 
@@ -118,6 +137,8 @@ export function buildAssistant(input: BuildAssistantInput): VapiAssistant {
     maxDurationSeconds: 900,
     analysisPlan: { summaryPlan: { enabled: true } },
     artifactPlan: { recordingEnabled: true, transcriptPlan: { enabled: true } },
+    endCallPhrases: END_CALL_PHRASES,
+    monitorPlan: { listenEnabled: true, controlEnabled: true },
     metadata: { callId: input.callId, organizationId: input.organizationId },
   };
 }

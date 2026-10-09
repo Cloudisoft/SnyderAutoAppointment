@@ -24,7 +24,16 @@ export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
   needs_review: 'Needs review',
 };
 
-export const LOCATION_TYPES = ['phone', 'video', 'in_person', 'custom'] as const;
+export const LOCATION_TYPES = ['phone', 'google_meet', 'zoom', 'video', 'in_person', 'custom'] as const;
+
+export const LOCATION_TYPE_LABELS: Record<(typeof LOCATION_TYPES)[number], string> = {
+  phone: 'Phone call',
+  google_meet: 'Google Meet (link created automatically)',
+  zoom: 'Zoom (meeting created automatically)',
+  video: 'Video call (your own link)',
+  in_person: 'In person',
+  custom: 'Other',
+};
 export type LocationType = (typeof LOCATION_TYPES)[number];
 
 export const HOST_STRATEGIES = ['specific_host', 'round_robin', 'least_booked'] as const;

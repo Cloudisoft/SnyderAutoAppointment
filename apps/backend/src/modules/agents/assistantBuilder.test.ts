@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildAssistant } from './assistantBuilder';
+import { buildAssistant, GOODBYE_LINE, TRANSFER_ANNOUNCEMENT } from './assistantBuilder';
 import { sampleSnapshot } from '../../../test/helpers/samples';
 
 
@@ -32,6 +32,32 @@ describe('buildAssistant', () => {
     const b = buildAssistant({ snapshot, lead, callId: 'c1', organizationId: 'o1', config });
     expect(b.model).toMatchObject({ provider: 'anthropic', model: 'claude-haiku-4-5-20251001' });
     expect(b.voice.provider).toBe('cartesia');
+  });
+
+  it('enables live listen/control, hang-up phrases and explicit end-call and transfer rules', () => {
+    expect(a.monitorPlan).toEqual({ listenEnabled: true, controlEnabled: true });
+    expect(a.endCallPhrases).toContain('goodbye');
+    const prompt = a.model.messages[0]!.content;
+    expect(prompt).toContain('immediately call the endCall tool');
+    expect(prompt).toContain('call the transferCall tool');
+    const transfer = a.model.tools.find((t) => t.type === 'transferCall');
+    expect(transfer).toMatchObject({ messages: [{ type: 'request-start', content: 'Sure, let me transfer your call.' }] });
+  });
+
+  it('without a transfer number, offers a callback instead of a transfer', () => {
+    const snapshot = { ...sampleSnapshot, agent: { ...sampleSnapshot.agent, transfer_number: null } };
+    const b = buildAssistant({ snapshot, lead, callId: 'c1', organizationId: 'o1', config });
+    expect(b.model.tools.some((t) => t.type === 'transferCall')).toBe(false);
+    expect(b.model.messages[0]!.content).toContain('offer to have someone call them back');
+  });
+
+  it('recognises transfer announcements and goodbyes, not ordinary sentences', () => {
+    for (const s of ['Sure, let me transfer your call.', "I'm going to connect you now", 'I will transfer you to the team', 'Transferring your call now.']) {
+      expect(TRANSFER_ANNOUNCEMENT.test(s), s).toBe(true);
+    }
+    for (const s of ['Would you like me to transfer you?', 'We can connect next week.']) expect(TRANSFER_ANNOUNCEMENT.test(s), s).toBe(false);
+    for (const s of ['Thanks for your time, goodbye.', 'Have a great day!', 'Bye for now']) expect(GOODBYE_LINE.test(s), s).toBe(true);
+    for (const s of ['Before we say goodbye, can I ask one thing?', 'Is today a great day for you?']) expect(GOODBYE_LINE.test(s), s).toBe(false);
   });
 
   it('renders prompt placeholders and strips unknown ones', () => {

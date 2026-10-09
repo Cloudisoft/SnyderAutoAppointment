@@ -1,10 +1,12 @@
-import { LOCATION_TYPES } from '@snyder/shared';
+import { LOCATION_TYPE_LABELS, LOCATION_TYPES } from '@snyder/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
 import { useEffect, useState } from 'react';
 import { Badge, Button, Card, EmptyState, ErrorText, Field, Input, Modal, Select, Table, Tabs, Td, Textarea, Toggle } from '../../components/ui';
 import { TimeZoneSelect } from '../../components/TimeZoneSelect';
+import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
+import type { Integration } from './Integrations';
 import { titleCase } from '../../lib/format';
 
 export interface AppointmentType {
@@ -63,7 +65,7 @@ function TypesTab() {
               <Td className="font-medium">{t.name}</Td>
               <Td>{t.duration_minutes} min</Td>
               <Td>{t.buffer_before_minutes} / {t.buffer_after_minutes} min</Td>
-              <Td>{titleCase(t.location_type)}{t.location_details && <span className="block text-xs text-muted truncate max-w-56">{t.location_details}</span>}</Td>
+              <Td>{LOCATION_TYPE_LABELS[t.location_type]?.split(' (')[0] ?? titleCase(t.location_type)}{t.location_details && <span className="block text-xs text-muted truncate max-w-56">{t.location_details}</span>}</Td>
               <Td>{t.is_active ? <Badge tone="green">Active</Badge> : <Badge>Inactive</Badge>}</Td>
               <Td className="text-right"><Button size="sm" variant="ghost" onClick={() => setEditing(t)}>Edit</Button></Td>
             </tr>
@@ -79,14 +81,17 @@ function TypesTab() {
               <Field label="Buffer before">{num('buffer_before_minutes')}</Field>
               <Field label="Buffer after">{num('buffer_after_minutes')}</Field>
             </div>
-            <Field label="Location">
+            <Field label="Where the meeting happens">
               <Select value={editing.location_type} onChange={(e) => setEditing({ ...editing, location_type: e.target.value as AppointmentType['location_type'] })}>
-                {LOCATION_TYPES.map((l) => <option key={l} value={l}>{titleCase(l)}</option>)}
+                {LOCATION_TYPES.map((l) => <option key={l} value={l}>{LOCATION_TYPE_LABELS[l]}</option>)}
               </Select>
             </Field>
-            <Field label="Location details" hint="Video link, address, dial-in, or leave blank for 'host will call you'.">
-              <Input value={editing.location_details ?? ''} onChange={(e) => setEditing({ ...editing, location_details: e.target.value })} />
-            </Field>
+            <MeetingProviderHint locationType={editing.location_type} />
+            {editing.location_type !== 'google_meet' && editing.location_type !== 'zoom' && (
+              <Field label="Location details" hint="Video link, address, dial-in, or leave blank for 'host will call you'.">
+                <Input value={editing.location_details ?? ''} onChange={(e) => setEditing({ ...editing, location_details: e.target.value })} />
+              </Field>
+            )}
             <Field label="Description (shown to the prospect)"><Textarea rows={3} value={editing.description ?? ''} onChange={(e) => setEditing({ ...editing, description: e.target.value })} /></Field>
             <Toggle checked={editing.is_active} onChange={(v) => setEditing({ ...editing, is_active: v })} label="Active" />
             <ErrorText error={save.error} />
@@ -303,5 +308,21 @@ function TemplatesTab() {
         ) : <p className="text-sm text-muted">Edit the template to see a preview with sample data.</p>}
       </Card>
     </div>
+  );
+}
+
+/** Tells admins whether Google Meet / Zoom is connected for a meeting type that needs it. */
+function MeetingProviderHint({ locationType }: { locationType: string }) {
+  const needs = locationType === 'google_meet' ? 'google' : locationType === 'zoom' ? 'zoom' : null;
+  const q = useQuery({ queryKey: ['integrations'], queryFn: () => api.get<Integration[]>('/api/integrations'), enabled: !!needs, meta: { silent: true } });
+  if (!needs) return null;
+  const i = q.data?.find((x) => x.provider === needs);
+  if (!i) return null;
+  return i.connected && i.status !== 'error' ? (
+    <p className="rounded-lg bg-success/10 p-3 text-sm text-success">✓ {i.label} is connected ({i.account_email}). Each booking gets its own link, sent in the confirmation email.</p>
+  ) : (
+    <p className="rounded-lg bg-warning/10 p-3 text-sm text-warning">
+      {i.label} isn’t connected yet. <Link className="font-semibold underline" to="/settings/integrations">Connect it</Link> so bookings get a meeting link.
+    </p>
   );
 }

@@ -2,6 +2,7 @@ import type { DbClient } from '../../../db/pool';
 import type { Deps } from '../../../deps';
 import { SmtpNotConfiguredError } from '../../../integrations/mailer';
 import { recordAppointmentEvent } from '../events';
+import { syncMeetingSafe } from '../../meetings/sync';
 import { deliverEmailNotification, type DeliveryResult, type NotificationRow } from './email';
 import { deliverSmsNotification } from './sms';
 
@@ -147,6 +148,8 @@ export async function kickOrganizationNotifications(deps: Deps, organizationId: 
 
 /** Sends an appointment's due notifications right away (after confirm/reschedule/cancel). */
 export async function kickNotifications(deps: Deps, appointmentId: string): Promise<void> {
+  // Create/update/remove the calendar event and video meeting first so emails carry the link.
+  await syncMeetingSafe(deps, appointmentId);
   await dispatchNotificationsBatch(deps, { appointmentId }).catch((err) =>
     deps.logger.error({ err, appointmentId }, 'immediate notification dispatch failed; the job will retry'),
   );

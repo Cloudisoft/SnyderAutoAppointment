@@ -5,6 +5,7 @@ import type { CallPipeline } from '../modules/calls/pipeline';
 import { reconcileCallsBatch } from '../modules/calls/reconcile';
 import { dialerTick } from '../modules/dialer/dialer';
 import { holdExpiryBatch, noShowBatch, reminderSchedulerBatch } from '../modules/appointments/jobs';
+import { meetingSyncBatch } from '../modules/meetings/sync';
 import { dispatchNotificationsBatch } from '../modules/appointments/notifications/dispatcher';
 import type { Job } from './runner';
 
@@ -20,5 +21,6 @@ export function buildJobs(deps: Deps, pipeline: CallPipeline): Job[] {
     { name: 'appointment-notification-dispatch', intervalMs: c.APPOINTMENT_NOTIFICATION_DISPATCH_INTERVAL_MS, run: () => dispatchNotificationsBatch(deps) },
     { name: 'appointment-reminders', intervalMs: c.APPOINTMENT_REMINDER_INTERVAL_MS, run: () => reminderSchedulerBatch(deps) },
     { name: 'appointment-no-show', intervalMs: c.APPOINTMENT_NO_SHOW_INTERVAL_MS, run: () => noShowBatch(deps) },
+    { name: 'meeting-sync', intervalMs: c.MEETING_SYNC_INTERVAL_MS, run: () => meetingSyncBatch(deps) },
   ];
 }

@@ -148,7 +148,10 @@ export async function registerAppointmentRoutes(app: FastifyInstance, deps: Deps
     const { id } = idParam.parse(req.params);
     const { rows } = await db.query(
       `select a.*, h.display_name as host_name, h.email as host_email, t.name as type_name, t.duration_minutes, t.location_type, t.location_details,
-              cp.name as campaign_name, l.first_name, l.last_name, l.email as lead_email, l.phone_e164, l.company, c.summary as call_summary
+              cp.name as campaign_name, l.first_name, l.last_name, l.email as lead_email, l.phone_e164, l.company, c.summary as call_summary,
+              (select json_build_object('provider', m.provider, 'join_url', m.join_url, 'status', m.status, 'last_error', m.last_error,
+                        'calendar', m.google_event_id is not null)
+                 from appointment_meetings m where m.appointment_id = a.id) as meeting
          from appointments a
          join appointment_hosts h on h.id = a.host_id
          join appointment_types t on t.id = a.appointment_type_id

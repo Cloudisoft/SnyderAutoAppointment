@@ -9,6 +9,8 @@ import { createSmtpMailer } from './integrations/mailer';
 import { createOpenAiClient } from './integrations/openai';
 import { createTwilioClient } from './integrations/twilio';
 import { createVapiClient } from './integrations/vapi';
+import { createGoogleClient } from './integrations/google';
+import { createZoomClient } from './integrations/zoom';
 import {
   createSupabaseAdmin,
   createSupabaseAuthVerifier,
@@ -36,6 +38,8 @@ const deps: Deps = {
   twilio: createTwilioClient(),
   openai: createOpenAiClient(config.OPENAI_API_KEY),
   mailer: createSmtpMailer(config, db),
+  google: createGoogleClient(config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET),
+  zoom: createZoomClient(config.ZOOM_CLIENT_ID, config.ZOOM_CLIENT_SECRET),
 };
 const pipeline = defaultCallPipeline();
 const app = await buildApp(deps, pipeline);

@@ -9,6 +9,7 @@ interface Health {
   twilio: (Check & { id: string | null; name: string })[];
   email: Check;
   webhook: Check;
+  meetings: (Check & { name: string })[];
 }
 
 export function ConnectionsSettings() {
@@ -19,6 +20,7 @@ export function ConnectionsSettings() {
         ['Voice service', 'AI voices', q.data.cartesia],
         ...q.data.twilio.map((t): [string, string, Check] => [`Twilio · ${t.name}`, 'Phone numbers and caller ID', t]),
         ['Email (SMTP)', 'Confirmations, reminders and reschedule links', q.data.email],
+        ...q.data.meetings.map((m): [string, string, Check] => [m.name, 'Calendar events and meeting links for bookings', m]),
         ['Webhook URL', 'Where live call events are sent (set automatically on every call)', q.data.webhook],
       ]
     : [];

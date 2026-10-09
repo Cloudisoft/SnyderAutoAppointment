@@ -17,6 +17,7 @@ interface PublicAppointment {
   host_name: string;
   location_type: string;
   location: string;
+  join_url: string | null;
   status: string;
   can_modify: boolean;
   calendar: { google: string; outlook: string } | null;
@@ -101,6 +102,16 @@ export function PublicAppointmentPage() {
           <dt className="text-muted">With</dt><dd>{a.host_name}</dd>
           <dt className="text-muted">Where</dt><dd className="break-words"><Linkified text={a.location} /></dd>
         </dl>
+        {a.join_url && (
+          <a
+            href={a.join_url}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-fg shadow-sm transition-all duration-200 hover:-translate-y-px hover:bg-primary-hover"
+          >
+            {a.location_type === 'zoom' ? 'Join Zoom meeting' : a.location_type === 'google_meet' ? 'Join Google Meet' : 'Join meeting'}
+          </a>
+        )}
         {a.description && <p className="mt-4 text-sm text-muted">{a.description}</p>}
         {a.calendar && (
           <div className="mt-5 flex flex-wrap gap-2">

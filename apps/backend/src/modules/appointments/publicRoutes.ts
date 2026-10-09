@@ -40,7 +40,13 @@ export async function registerPublicAppointmentRoutes(app: FastifyInstance, deps
       const ctx = await loadEmailContext(deps.db, appt.id);
       const now = deps.clock.now();
       const location = locationText(ctx);
-      const calendar = { title: `${ctx.type.name} with ${ctx.host.display_name}`, start: appt.starts_at, end: appt.ends_at, details: ctx.type.description ?? '', location };
+      const calendar = {
+        title: `${ctx.type.name} with ${ctx.host.display_name}`,
+        start: appt.starts_at,
+        end: appt.ends_at,
+        details: [ctx.meeting?.join_url ? `Join: ${ctx.meeting.join_url}` : null, ctx.type.description].filter(Boolean).join('\n'),
+        location: ctx.meeting?.join_url ?? location,
+      };
       const active = ['confirmed', 'rescheduled'].includes(appt.status);
       return {
         business_name: ctx.businessName,
@@ -54,6 +60,7 @@ export async function registerPublicAppointmentRoutes(app: FastifyInstance, deps
         host_name: ctx.host.display_name,
         location_type: ctx.type.location_type,
         location,
+        join_url: active ? ctx.meeting?.join_url ?? null : null,
         status: appt.status,
         can_modify: active && appt.starts_at.getTime() > now.getTime(),
         calendar: active ? { google: googleCalendarUrl(calendar), outlook: outlookCalendarUrl(calendar) } : null,
