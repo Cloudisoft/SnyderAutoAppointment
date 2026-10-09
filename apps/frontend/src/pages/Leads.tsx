@@ -260,6 +260,7 @@ function ImportModal({ open, onClose, lists, onDone }: { open: boolean; onClose(
   const [fileName, setFileName] = useState('');
   const [listId, setListId] = useState('');
   const [newList, setNewList] = useState('');
+  const [fileError, setFileError] = useState('');
   const m = useMutation({
     mutationFn: () =>
       api.post<{ inserted: number; skipped: number; errors: { row: number; error: string }[] }>('/api/leads/import', {
@@ -270,10 +271,29 @@ function ImportModal({ open, onClose, lists, onDone }: { open: boolean; onClose(
   });
   return (
     <Modal open={open} onClose={onClose} title="Import leads" footer={<Button variant="primary" disabled={!csv} loading={m.isPending} onClick={() => m.mutate()}>Import</Button>}>
-      <Field label="CSV file" hint="Columns: first_name, last_name, email, phone, company, time_zone. Other columns become custom fields.">
-        <Input type="file" accept=".csv,text/csv" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { setFileName(f.name); setCsv(await f.text()); } }} />
+      <Field label="CSV file" hint="Needs a phone column (Phone, Mobile, Cell…). Name, first/last name, email, company and time zone are picked up automatically; other columns become custom fields. Comma, semicolon or tab separated.">
+        <Input
+          type="file"
+          accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values"
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+            setFileName(f.name);
+            m.reset();
+            const text = await f.text();
+            // .xlsx/.xls files are binary; they must be saved as CSV first.
+            if (text.startsWith('PK') || /\.xlsx?$/i.test(f.name)) {
+              setCsv('');
+              setFileError('This is an Excel file. In Excel choose File → Save As → CSV, then upload the .csv file.');
+            } else {
+              setFileError('');
+              setCsv(text);
+            }
+          }}
+        />
       </Field>
       {fileName && <p className="text-xs text-muted">{fileName}</p>}
+      {fileError && <p className="text-sm text-danger">{fileError}</p>}
       <Field label="Add to list">
         <Select value={listId} onChange={(e) => setListId(e.target.value)}>
           <option value="">New list…</option>
@@ -283,9 +303,16 @@ function ImportModal({ open, onClose, lists, onDone }: { open: boolean; onClose(
       {!listId && <Field label="New list name"><Input value={newList} onChange={(e) => setNewList(e.target.value)} placeholder="e.g. October import" /></Field>}
       <ErrorText error={m.error} />
       {m.data && (
-        <div className="text-sm">
-          <p className="text-success">Imported {m.data.inserted} leads. Skipped {m.data.skipped}.</p>
-          {m.data.errors.slice(0, 5).map((e) => <p key={e.row} className="text-muted">Row {e.row}: {e.error}</p>)}
+        <div className="space-y-2 text-sm animate-soft-in">
+          <p className={m.data.inserted ? 'font-medium text-success' : 'font-medium text-danger'}>
+            Imported {m.data.inserted} lead{m.data.inserted === 1 ? '' : 's'}{m.data.skipped ? `, skipped ${m.data.skipped}` : ''}.
+          </p>
+          {m.data.errors.length > 0 && (
+            <div className="max-h-48 overflow-auto rounded-lg border border-border bg-surface-2 p-2">
+              {m.data.errors.map((e) => <p key={e.row} className="text-muted">Row {e.row}: {e.error}</p>)}
+              {m.data.skipped > m.data.errors.length && <p className="text-muted">…and {m.data.skipped - m.data.errors.length} more.</p>}
+            </div>
+          )}
         </div>
       )}
     </Modal>
