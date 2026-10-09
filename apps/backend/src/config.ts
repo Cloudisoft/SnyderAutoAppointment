@@ -36,6 +36,11 @@ const EnvSchema = z.object({
   SMTP_PASSWORD: z.string().default(''),
   SMTP_FROM_EMAIL: z.string().default(''),
   SMTP_FROM_NAME: z.string().default(''),
+  // Platform email through an HTTPS email API (used for every organization that hasn't set up its own).
+  PLATFORM_EMAIL_TRANSPORT: z.enum(['', 'resend', 'sendgrid', 'postmark', 'brevo']).default(''),
+  PLATFORM_EMAIL_API_KEY: z.string().default(''),
+  PLATFORM_EMAIL_FROM: z.string().default(''),
+  PLATFORM_EMAIL_FROM_NAME: z.string().default(''),
 
   // Serve the built web app from this process (single-service deploys). Path to apps/frontend/dist.
   FRONTEND_DIST_DIR: z.string().optional(),

@@ -1,7 +1,10 @@
 import nodemailer, { type Transporter } from 'nodemailer';
 import type { Config } from '../config';
 import type { DbClient } from '../db/pool';
+import { API_TRANSPORTS, sendViaApi, verifyApi, type ApiTransport } from './emailApi';
 import { readSecret } from './vault';
+
+export type EmailTransport = 'smtp' | ApiTransport;
 
 export interface OutgoingEmail {
   to: string;
@@ -18,6 +21,8 @@ export interface OutgoingEmail {
 }
 
 export interface SmtpSettings {
+  /** 'smtp', or an email service's HTTPS API (the API key is in `password`). */
+  transport: EmailTransport;
   host: string;
   port: number;
   secure: boolean;
@@ -44,6 +49,18 @@ export class SmtpNotConfiguredError extends Error {
 
 type TransportFactory = (settings: SmtpSettings) => Transporter;
 
+const isApi = (t: EmailTransport): t is ApiTransport => (API_TRANSPORTS as readonly string[]).includes(t);
+
+/** Explains SMTP connection timeouts, which almost always mean the port is blocked by the host. */
+export function explainSmtpError(err: unknown): string {
+  const e = err as { message?: string; code?: string };
+  const msg = e?.message || String(err);
+  if (/timeout|ETIMEDOUT|ECONNREFUSED|EHOSTUNREACH/i.test(`${e?.code ?? ''} ${msg}`)) {
+    return `${msg}. The mail server could not be reached: this hosting blocks outgoing SMTP ports. Choose an email API (Resend, SendGrid, Postmark or Brevo) under "Send with" instead.`;
+  }
+  return msg;
+}
+
 export const smtpTransport: TransportFactory = (s) =>
   nodemailer.createTransport({
     host: s.host,
@@ -56,8 +73,23 @@ export const smtpTransport: TransportFactory = (s) =>
   });
 
 export function envSmtpSettings(config: Config): SmtpSettings | null {
+  // Platform email API (works on hosts that block SMTP) takes precedence over platform SMTP.
+  if (config.PLATFORM_EMAIL_TRANSPORT && config.PLATFORM_EMAIL_API_KEY && config.PLATFORM_EMAIL_FROM) {
+    return {
+      transport: config.PLATFORM_EMAIL_TRANSPORT,
+      host: '',
+      port: 0,
+      secure: true,
+      username: null,
+      password: config.PLATFORM_EMAIL_API_KEY,
+      fromEmail: config.PLATFORM_EMAIL_FROM,
+      fromName: config.PLATFORM_EMAIL_FROM_NAME || null,
+      replyTo: null,
+    };
+  }
   if (!config.SMTP_HOST || !config.SMTP_FROM_EMAIL) return null;
   return {
+    transport: 'smtp',
     host: config.SMTP_HOST,
     port: config.SMTP_PORT,
     secure: config.SMTP_PORT === 465,
@@ -71,8 +103,9 @@ export function envSmtpSettings(config: Config): SmtpSettings | null {
 
 export async function loadOrgSmtpSettings(db: DbClient, organizationId: string): Promise<(SmtpSettings & { updatedAt: Date }) | null> {
   const { rows } = await db.query<{
-    host: string;
-    port: number;
+    transport: EmailTransport;
+    host: string | null;
+    port: number | null;
     secure: boolean;
     username: string | null;
     password_secret_id: string | null;
@@ -84,8 +117,9 @@ export async function loadOrgSmtpSettings(db: DbClient, organizationId: string):
   const r = rows[0];
   if (!r) return null;
   return {
-    host: r.host,
-    port: r.port,
+    transport: r.transport ?? 'smtp',
+    host: r.host ?? '',
+    port: r.port ?? 0,
     secure: r.secure,
     username: r.username,
     password: r.password_secret_id ? await readSecret(db, r.password_secret_id) : null,
@@ -102,10 +136,10 @@ export async function loadOrgSmtpSettings(db: DbClient, organizationId: string):
  */
 export function createSmtpMailer(config: Config, db: DbClient, makeTransport: TransportFactory = smtpTransport): Mailer {
   const env = envSmtpSettings(config);
-  const envTransport = env ? makeTransport(env) : null;
-  const cache = new Map<string, { stamp: number; transport: Transporter; settings: SmtpSettings }>();
+  const envTransport = env && env.transport === 'smtp' ? makeTransport(env) : null;
+  const cache = new Map<string, { stamp: number; transport: Transporter | null; settings: SmtpSettings }>();
 
-  async function resolve(organizationId?: string): Promise<{ settings: SmtpSettings; transport: Transporter } | null> {
+  async function resolve(organizationId?: string): Promise<{ settings: SmtpSettings; transport: Transporter | null } | null> {
     if (organizationId) {
       const { rows } = await db.query<{ updated_at: Date }>(
         'select updated_at from organization_smtp_settings where organization_id = $1',
@@ -117,14 +151,14 @@ export function createSmtpMailer(config: Config, db: DbClient, makeTransport: Tr
         if (hit && hit.stamp === stamp) return hit;
         const settings = await loadOrgSmtpSettings(db, organizationId);
         if (settings) {
-          hit?.transport.close();
-          const entry = { stamp, settings, transport: makeTransport(settings) };
+          hit?.transport?.close();
+          const entry = { stamp, settings, transport: isApi(settings.transport) ? null : makeTransport(settings) };
           cache.set(organizationId, entry);
           return entry;
         }
       }
     }
-    return env && envTransport ? { settings: env, transport: envTransport } : null;
+    return env ? { settings: env, transport: envTransport } : null;
   }
 
   return {
@@ -132,6 +166,7 @@ export function createSmtpMailer(config: Config, db: DbClient, makeTransport: Tr
       return (await resolve(organizationId))?.settings ?? null;
     },
     async verify(settings) {
+      if (isApi(settings.transport)) return verifyApi(settings.transport, settings);
       const t = makeTransport(settings);
       try {
         await t.verify();
@@ -143,10 +178,12 @@ export function createSmtpMailer(config: Config, db: DbClient, makeTransport: Tr
       const r = await resolve(email.organizationId);
       if (!r) throw new SmtpNotConfiguredError();
       const { settings, transport } = r;
+      if (isApi(settings.transport)) return sendViaApi(settings.transport, settings, email);
+      if (!transport) throw new SmtpNotConfiguredError();
       const info = await transport.sendMail({
         from: { name: email.fromName || settings.fromName || settings.fromEmail, address: settings.fromEmail },
         to: email.to,
-        replyTo: email.replyTo ?? settings.replyTo ?? undefined,
+        replyTo: settings.replyTo ?? email.replyTo ?? undefined,
         subject: email.subject,
         html: email.html,
         text: email.text,

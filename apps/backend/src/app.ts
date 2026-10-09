@@ -9,6 +9,7 @@ import { registerPublicAppointmentRoutes } from './modules/appointments/publicRo
 import { registerTwilioSmsWebhook } from './modules/appointments/notifications/smsWebhook';
 import { registerAnalyticsRoutes } from './modules/analytics/routes';
 import { registerCallRoutes } from './modules/calls/routes';
+import { registerRecordingRoutes } from './modules/calls/recordings';
 import { registerVapiWebhook } from './modules/calls/webhook';
 import { registerLeadRoutes } from './modules/leads/routes';
 import { registerTelephonyRoutes } from './modules/telephony/routes';
@@ -43,6 +44,7 @@ export async function buildApp(deps: Deps, pipeline: CallPipeline = defaultCallP
   await registerAgentRoutes(app, deps);
   await registerCampaignRoutes(app, deps);
   await registerCallRoutes(app, deps);
+  await registerRecordingRoutes(app, deps);
   await registerAnalyticsRoutes(app, deps);
   await registerVapiWebhook(app, deps, pipeline);
   await registerHealthRoutes(app, deps, pipeline);

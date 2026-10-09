@@ -75,6 +75,8 @@ export async function deliverEmailNotification(deps: Deps, n: NotificationRow): 
     ...email,
     to,
     organizationId: n.organization_id,
+    // Replies reach a person: the host for prospect emails (unless the org set its own reply-to).
+    replyTo: kind === 'host_notice' ? undefined : ctx.host.email,
     headers: { 'X-Snyder-Appointment': appt.id, 'X-Snyder-Notification': n.id },
   });
   return { status: 'sent', providerMessage: res.messageId };

@@ -87,8 +87,24 @@ export interface VapiCall {
   recordingUrl?: string;
   summary?: string;
   messages?: VapiMessage[];
-  artifact?: { transcript?: string; recordingUrl?: string; messages?: VapiMessage[] };
+  artifact?: VapiArtifact;
   analysis?: { summary?: string; structuredData?: Record<string, unknown>; successEvaluation?: unknown };
+}
+
+/** Call artifacts. Recordings may be on private storage, reachable only through expiring presigned URLs. */
+export interface VapiArtifact {
+  transcript?: string;
+  recordingUrl?: string;
+  stereoRecordingUrl?: string;
+  recording?: { stereoUrl?: string; mono?: { combinedUrl?: string } };
+  presignedMonoUrl?: string;
+  presignedStereoUrl?: string;
+  messages?: VapiMessage[];
+}
+
+/** The best playable recording URL in an artifact (fresh presigned URL first). */
+export function recordingUrlOf(a: VapiArtifact | undefined, fallback?: string): string | null {
+  return a?.presignedMonoUrl ?? a?.recording?.mono?.combinedUrl ?? a?.recordingUrl ?? a?.presignedStereoUrl ?? a?.recording?.stereoUrl ?? a?.stereoRecordingUrl ?? fallback ?? null;
 }
 
 export interface VapiClient {

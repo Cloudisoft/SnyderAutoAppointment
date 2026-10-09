@@ -4,6 +4,7 @@ import type { Deps } from '../../deps';
 import { badRequest, notFound } from '../../lib/errors';
 import { toE164 } from '../../lib/phone';
 import { getMonitor, sendControl, transferNumberFor } from './liveControl';
+import { signedRecordingUrl } from './recordings';
 import { authenticate, authOf, requirePermission } from '../../plugins/auth';
 import { neutralize } from '../../lib/http';
 import { sendTableExport, type ExportColumn } from '../../lib/tableExport';
@@ -64,7 +65,7 @@ async function listCalls(db: Db, organizationId: string, q: CallFilters, page: {
 }
 
 const yesNo = (v: unknown) => (v ? 'yes' : 'no');
-const CALL_EXPORT_COLUMNS: ExportColumn<CallRow>[] = [
+const callExportColumns = (recordingLink: (r: CallRow) => string | null): ExportColumn<CallRow>[] => [
   ['Call ID', (r) => r.id],
   ['Created at', (r) => r.created_at],
   ['Started at', (r) => r.started_at],
@@ -88,7 +89,7 @@ const CALL_EXPORT_COLUMNS: ExportColumn<CallRow>[] = [
   ['Appointment start (UTC)', (r) => r.appointment?.starts_at],
   ['Cost (USD)', (r) => (r.cost == null ? null : Number(r.cost))],
   ['Summary', (r) => r.summary],
-  ['Recording URL', (r) => r.recording_url],
+  ['Recording URL', recordingLink],
   ['Transcript', (r) => r.transcript],
 ];
 
@@ -109,7 +110,10 @@ export async function registerCallRoutes(app: FastifyInstance, deps: Deps) {
     const { organizationId } = authOf(req);
     const q = CallQuery.extend({ format: z.enum(['csv', 'xlsx']).default('csv') }).parse(req.query);
     const rows = await listCalls(db, organizationId, q, { limit: EXPORT_MAX_ROWS, offset: 0 });
-    return sendTableExport(reply, { format: q.format, name: 'call-records', sheet: 'Calls', columns: CALL_EXPORT_COLUMNS, rows, now: deps.clock.now() });
+    // Links stream through this server (30 days), so they keep working when the stored URL expires.
+    const now = deps.clock.now();
+    const link = (r: CallRow) => (r.recording_url || (r.connected && r.status === 'ended') ? signedRecordingUrl(deps.config, String(r.id), now, 30 * 86_400_000) : null);
+    return sendTableExport(reply, { format: q.format, name: 'call-records', sheet: 'Calls', columns: callExportColumns(link), rows, now });
   });
 
   // Deletes finished call records (with their transcripts/events). Calls still in flight are kept.

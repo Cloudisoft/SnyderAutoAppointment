@@ -126,7 +126,7 @@ describeDb('bulk actions and exports', () => {
     const csv = await app.inject({ method: 'GET', url: `/api/calls/export?format=csv&ids=${callId}`, headers: bearerFor(org.ownerId) });
     expect(csv.statusCode).toBe(200);
     expect(csv.headers['content-disposition']).toMatch(/call-records-.*\.csv/);
-    expect(csv.body).toContain('https://rec.example/1.wav');
+    expect(csv.body).toContain(`https://api.example.test/api/recordings/${callId}?exp=`);
     expect(csv.body).toContain('"AI: Hi\nUser: Hello"');
     expect(csv.body.trim().split('\r\n')).toHaveLength(2); // header + one record (transcript newlines stay quoted)
 

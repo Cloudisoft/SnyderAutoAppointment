@@ -1,4 +1,4 @@
-import type { VapiCall } from '../../integrations/vapi';
+import { recordingUrlOf, type VapiArtifact, type VapiCall } from '../../integrations/vapi';
 import type { CallEndData } from './types';
 
 interface EndOfCallReport {
@@ -11,7 +11,7 @@ interface EndOfCallReport {
   transcript?: string;
   recordingUrl?: string;
   summary?: string;
-  artifact?: { transcript?: string; recordingUrl?: string };
+  artifact?: VapiArtifact;
   analysis?: { summary?: string; structuredData?: Record<string, unknown> };
 }
 
@@ -22,7 +22,7 @@ export function fromEndOfCallReport(msg: EndOfCallReport): CallEndData {
     startedAt: msg.startedAt ?? msg.call?.startedAt ?? null,
     endedAt: msg.endedAt ?? msg.call?.endedAt ?? null,
     durationSeconds: typeof msg.durationSeconds === 'number' ? Math.round(msg.durationSeconds) : null,
-    recordingUrl: msg.artifact?.recordingUrl ?? msg.recordingUrl ?? null,
+    recordingUrl: recordingUrlOf(msg.artifact, msg.recordingUrl),
     transcript: msg.artifact?.transcript ?? msg.transcript ?? null,
     summary: msg.analysis?.summary ?? msg.summary ?? null,
     structuredData: msg.analysis?.structuredData ?? null,
@@ -38,7 +38,7 @@ export function fromVapiCall(call: VapiCall): CallEndData {
     startedAt: call.startedAt ?? null,
     endedAt: call.endedAt ?? null,
     durationSeconds: null,
-    recordingUrl: call.artifact?.recordingUrl ?? call.recordingUrl ?? null,
+    recordingUrl: recordingUrlOf(call.artifact, call.recordingUrl),
     transcript: call.artifact?.transcript ?? call.transcript ?? null,
     summary: call.analysis?.summary ?? call.summary ?? null,
     structuredData: call.analysis?.structuredData ?? null,
