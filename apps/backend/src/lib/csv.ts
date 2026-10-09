@@ -1,5 +1,13 @@
+/** Picks the separator from the header line: comma, semicolon (European Excel) or tab. */
+export function detectDelimiter(text: string): string {
+  const firstLine = text.replace(/^\uFEFF/, '').split(/\r?\n/, 1)[0] ?? '';
+  const outside = firstLine.replace(/"[^"]*"/g, '');
+  const count = (d: string) => outside.split(d).length - 1;
+  return [',', ';', '\t'].reduce((best, d) => (count(d) > count(best) ? d : best), ',');
+}
+
 /** RFC 4180 CSV parser (quoted fields, escaped quotes, CRLF/LF). Returns rows of cells. */
-export function parseCsv(text: string): string[][] {
+export function parseCsv(text: string, delimiter = detectDelimiter(text)): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = '';
@@ -17,7 +25,7 @@ export function parseCsv(text: string): string[][] {
       continue;
     }
     if (ch === '"') inQuotes = true;
-    else if (ch === ',') {
+    else if (ch === delimiter) {
       row.push(field);
       field = '';
     } else if (ch === '\n' || ch === '\r') {

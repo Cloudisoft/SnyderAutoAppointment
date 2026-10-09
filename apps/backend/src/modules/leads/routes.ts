@@ -7,7 +7,7 @@ import { neutralize } from '../../lib/http';
 import { sendTableExport, type ExportColumn } from '../../lib/tableExport';
 import { signedRecordingUrl } from '../calls/recordings';
 import { badRequest, notFound } from '../../lib/errors';
-import { digitsOnly, toE164 } from '../../lib/phone';
+import { digitsOnly, toE164, toE164Lenient } from '../../lib/phone';
 import { authenticate, authOf, requirePermission } from '../../plugins/auth';
 import { isValidTimeZone } from '../org/routes';
 import { LeadBulkInput, runLeadBulk } from './bulk';
@@ -16,21 +16,49 @@ const STANDARD_FIELDS: Record<string, string> = {
   first_name: 'first_name',
   firstname: 'first_name',
   first: 'first_name',
+  fname: 'first_name',
+  given_name: 'first_name',
   last_name: 'last_name',
   lastname: 'last_name',
   last: 'last_name',
+  lname: 'last_name',
+  surname: 'last_name',
+  family_name: 'last_name',
+  name: 'full_name',
+  full_name: 'full_name',
+  fullname: 'full_name',
+  contact_name: 'full_name',
+  lead_name: 'full_name',
+  customer_name: 'full_name',
   email: 'email',
   email_address: 'email',
+  e_mail: 'email',
+  mail: 'email',
   phone: 'phone',
   phone_number: 'phone',
   mobile: 'phone',
   cell: 'phone',
   company: 'company',
   company_name: 'company',
+  organization: 'company',
+  organisation: 'company',
+  business: 'company',
+  business_name: 'company',
+  employer: 'company',
   time_zone: 'time_zone',
   timezone: 'time_zone',
   tz: 'time_zone',
 };
+
+/** Which standard field a CSV header means, also catching headers like "Mobile Phone", "Phone #", "Cell 1" or "Work Email". */
+export function fieldForHeader(key: string): string | undefined {
+  if (STANDARD_FIELDS[key]) return STANDARD_FIELDS[key];
+  if (/(^|_)(ext|extension|type|status|verified|valid|carrier|country)($|_)/.test(key)) return undefined;
+  if (/phone|mobile|(^|_)cell|(^|_)tel($|_|ephone)|contact_number/.test(key)) return 'phone';
+  if (/(^|_)e?_?mail($|_)/.test(key) || key.endsWith('_email')) return 'email';
+  return undefined;
+}
+
 
 const LeadInput = z.object({
   first_name: z.string().trim().max(200).nullish(),
@@ -362,7 +390,13 @@ export async function registerLeadRoutes(app: FastifyInstance, deps: Deps) {
         if (!ok.rowCount) throw badRequest('Unknown lead list');
       }
 
-      const customKeys = Object.keys(records[0]!).filter((k) => !STANDARD_FIELDS[k] && /^[a-z][a-z0-9_]*$/.test(k));
+      const headers = Object.keys(records[0]!);
+      // Every phone-like column, in file order: a row falls back to the next one when the first is empty or invalid.
+      const phoneKeys = headers.filter((k) => fieldForHeader(k) === 'phone');
+      if (!phoneKeys.length) {
+        throw badRequest(`No phone column found. Name one column "Phone" (columns in your file: ${headers.join(', ') || 'none'}).`);
+      }
+      const customKeys = headers.filter((k) => !fieldForHeader(k) && /^[a-z][a-z0-9_]*$/.test(k));
       for (const key of customKeys) {
         await c.query(
           `insert into lead_custom_field_defs(organization_id, key, label) values ($1, $2, $3)
@@ -377,13 +411,24 @@ export async function registerLeadRoutes(app: FastifyInstance, deps: Deps) {
         const std: Record<string, string> = {};
         const custom: Record<string, string> = {};
         for (const [k, v] of Object.entries(rec)) {
-          const mapped = STANDARD_FIELDS[k];
-          if (mapped) std[mapped] = v;
-          else if (customKeys.includes(k) && v !== '') custom[k] = v;
+          const mapped = fieldForHeader(k);
+          if (mapped === 'phone') continue;
+          if (mapped) {
+            if (!std[mapped]) std[mapped] = v;
+          } else if (customKeys.includes(k) && v !== '') custom[k] = v;
         }
-        const phone = std.phone ? toE164(std.phone) : null;
+        if (std.full_name && !std.first_name && !std.last_name) {
+          const parts = std.full_name.split(/\s+/);
+          std.first_name = parts.shift() ?? '';
+          std.last_name = parts.join(' ');
+        }
+        const rawPhones = phoneKeys.map((k) => rec[k] ?? '').filter(Boolean);
+        const phone = rawPhones.map((p) => toE164Lenient(p)).find(Boolean) ?? null;
         if (!phone) {
-          errors.push({ row: i + 2, error: 'Missing or invalid phone number' });
+          errors.push({
+            row: i + 2,
+            error: rawPhones.length ? `"${rawPhones[0]!.slice(0, 40)}" is not a valid phone number` : 'No phone number in this row',
+          });
           continue;
         }
         const tz = std.time_zone && isValidTimeZone(std.time_zone) ? std.time_zone : null;

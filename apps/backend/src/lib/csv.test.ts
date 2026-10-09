@@ -11,6 +11,10 @@ describe('csv', () => {
   it('maps headers to normalized keys', () => {
     expect(parseCsvObjects('First Name,Phone #\nAnn,555')).toEqual([{ first_name: 'Ann', phone: '555' }]);
   });
+  it('detects semicolon and tab separated files', () => {
+    expect(parseCsvObjects('Name;Phone\nAnn;"1;2"')).toEqual([{ name: 'Ann', phone: '1;2' }]);
+    expect(parseCsvObjects('Name\tPhone\nAnn\t555')).toEqual([{ name: 'Ann', phone: '555' }]);
+  });
   it('escapes output and neutralizes formulas', () => {
     expect(toCsv(['a'], [['=1+1'], ['x,y']])).toBe("a\r\n'=1+1\r\n\"x,y\"\r\n");
   });
