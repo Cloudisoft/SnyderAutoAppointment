@@ -4,7 +4,13 @@ import { Sparkline } from './AreaTrend';
 
 function Animated({ value, format }: { value: number; format?: (n: number) => string }) {
   const n = useCountUp(value, 900);
-  return <>{format ? format(n) : Math.round(n).toLocaleString()}</>;
+  const show = (x: number) => (format ? format(x) : Math.round(x).toLocaleString());
+  return (
+    <span className="inline-grid">
+      <span aria-hidden className="invisible col-start-1 row-start-1">{show(value)}</span>
+      <span className="col-start-1 row-start-1">{show(n)}</span>
+    </span>
+  );
 }
 
 /** Change vs the previous period, with an arrow so it never relies on color alone. */
@@ -46,7 +52,7 @@ export function StatTile({
 }) {
   return (
     <div
-      className="group relative overflow-hidden rounded-2xl border border-border bg-surface p-4 animate-page-in lift"
+      className="group relative overflow-hidden rounded-2xl border border-border bg-surface p-4 animate-soft-in lift"
       style={{ animationDelay: `${index * 70}ms` }}
     >
       <span aria-hidden className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-primary transition-transform duration-300 group-hover:scale-x-100" />

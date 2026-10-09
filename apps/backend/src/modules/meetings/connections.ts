@@ -36,24 +36,24 @@ export function redirectUri(config: Pick<Config, 'BACKEND_PUBLIC_URL'>, provider
 const STATE_TTL_MS = 15 * 60_000;
 const stateKey = (secret: string) => createHmac('sha256', secret).update('oauth-state:v1').digest();
 
-export function signState(secret: string, s: { organizationId: string; userId: string; provider: Provider }, now: Date): string {
+export function signState(secret: string, s: { organizationId: string; userId: string; provider: Provider; returnTo?: string }, now: Date): string {
   const payload = Buffer.from(
-    JSON.stringify({ o: s.organizationId, u: s.userId, p: s.provider, e: now.getTime() + STATE_TTL_MS, n: randomBytes(8).toString('hex') }),
+    JSON.stringify({ o: s.organizationId, u: s.userId, p: s.provider, r: s.returnTo, e: now.getTime() + STATE_TTL_MS, n: randomBytes(8).toString('hex') }),
   ).toString('base64url');
   const sig = createHmac('sha256', stateKey(secret)).update(payload).digest('base64url');
   return `${payload}.${sig}`;
 }
 
-export function verifyState(secret: string, state: string, provider: Provider, now: Date): { organizationId: string; userId: string } | null {
+export function verifyState(secret: string, state: string, provider: Provider, now: Date): { organizationId: string; userId: string; returnTo?: string } | null {
   const [payload, sig] = state.split('.');
   if (!payload || !sig) return null;
   const expected = createHmac('sha256', stateKey(secret)).update(payload).digest();
   const given = Buffer.from(sig, 'base64url');
   if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
   try {
-    const s = JSON.parse(Buffer.from(payload, 'base64url').toString()) as { o: string; u: string; p: string; e: number };
+    const s = JSON.parse(Buffer.from(payload, 'base64url').toString()) as { o: string; u: string; p: string; e: number; r?: string };
     if (s.p !== provider || s.e < now.getTime()) return null;
-    return { organizationId: s.o, userId: s.u };
+    return { organizationId: s.o, userId: s.u, returnTo: s.r };
   } catch {
     return null;
   }

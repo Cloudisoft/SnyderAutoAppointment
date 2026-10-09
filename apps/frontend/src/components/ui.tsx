@@ -80,7 +80,7 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
 
 export function Card({ title, actions, children, className }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cx('rounded-xl border border-border bg-surface shadow-[0_1px_2px_rgb(9_13_13/0.04)] animate-page-in lift', className)}>
+    <section className={cx('rounded-xl border border-border bg-surface shadow-[0_1px_2px_rgb(9_13_13/0.04)] animate-soft-in lift', className)}>
       {(title || actions) && (
         <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
           <h2 className="font-display font-bold">{title}</h2>
@@ -116,7 +116,7 @@ export function Spinner({ small }: { small?: boolean }) {
 
 export function PageHeader({ title, description, actions }: { title: string; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3 animate-page-in">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3 animate-soft-in">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight">{title}</h1>
         {description && <p className="text-sm text-muted mt-1">{description}</p>}
@@ -128,8 +128,8 @@ export function PageHeader({ title, description, actions }: { title: string; des
 
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="rounded-xl border border-dashed border-border bg-surface/60 p-10 text-center animate-page-in">
-      <img src="/brand/mark.png" alt="" aria-hidden className="mx-auto mb-3 h-10 w-auto opacity-80 animate-float" />
+    <div className="rounded-xl border border-dashed border-border bg-surface/60 p-10 text-center animate-soft-in">
+      <img src="/brand/mark.png" alt="" aria-hidden className="mx-auto mb-3 h-10 w-auto opacity-80" />
       <p className="font-display font-bold">{title}</p>
       {children && <div className="mt-2 text-sm text-muted">{children}</div>}
     </div>
@@ -201,7 +201,7 @@ export function Tabs<T extends string>({ value, onChange, tabs }: { value: T; on
 
 export function Table({ head, children }: { head: ReactNode[]; children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-surface animate-page-in">
+    <div className="overflow-x-auto rounded-xl border border-border bg-surface animate-soft-in">
       <table className="w-full text-sm">
         <thead className="bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">
           <tr>{head.map((h, i) => <th key={i} className="px-3 py-2 font-medium">{h}</th>)}</tr>

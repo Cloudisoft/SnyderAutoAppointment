@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import type { Db } from '../../src/db/pool';
 import { withTx } from '../../src/db/pool';
 import { publishCampaign } from '../../src/modules/campaigns/service';
@@ -29,7 +30,8 @@ export async function createPhoneNumber(db: Db, orgId: string) {
      values ($1, 'Main', $2, vault.create_secret('token-' || $2)) returning id`,
     [orgId, `AC${uniq().padEnd(32, '0').slice(0, 32)}`],
   );
-  const e164 = `+1212555${String(1000 + (seq++ % 9000)).padStart(4, '0')}`;
+  // Unique across parallel test workers: the SMS webhook looks numbers up globally.
+  const e164 = `+1212${String(randomInt(0, 1e9)).padStart(9, '0')}`;
   const { rows } = await db.query<{ id: string }>(
     `insert into phone_numbers(organization_id, twilio_account_id, e164, vapi_phone_number_id)
      values ($1, $2, $3, $4) on conflict (organization_id, e164) do update set is_active = true returning id`,
