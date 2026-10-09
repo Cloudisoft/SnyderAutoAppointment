@@ -6,7 +6,7 @@ export function cx(...parts: (string | false | null | undefined)[]) {
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 const variants: Record<Variant, string> = {
-  primary: 'bg-primary text-primary-fg font-semibold shadow-sm shadow-primary/30 hover:bg-primary-hover hover:-translate-y-px hover:shadow-md hover:shadow-primary/30',
+  primary: 'btn-sheen bg-primary text-primary-fg font-semibold shadow-sm shadow-primary/30 hover:bg-primary-hover hover:shadow-md hover:shadow-primary/30',
   secondary: 'bg-surface border border-border hover:bg-surface-2 hover:border-primary/40',
   ghost: 'hover:bg-surface-2',
   danger: 'bg-danger text-white hover:opacity-90',
@@ -119,6 +119,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3 animate-soft-in">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight">{title}</h1>
+        <span aria-hidden className="title-accent" />
         {description && <p className="text-sm text-muted mt-1">{description}</p>}
       </div>
       <div className="flex flex-wrap gap-2">{actions}</div>

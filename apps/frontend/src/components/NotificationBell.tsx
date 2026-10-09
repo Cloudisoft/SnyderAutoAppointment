@@ -29,7 +29,7 @@ export function NotificationBell() {
   return (
     <div className="relative">
       <button aria-label="Notifications" className="relative rounded-md px-2 py-1 hover:bg-surface-2" onClick={() => setOpen((o) => !o)}>
-        🔔
+        <span key={unread} className={unread > 0 ? 'animate-ring' : 'inline-block'}>🔔</span>
         {unread > 0 && <span key={unread} className="absolute -right-1 -top-1 rounded-full bg-danger px-1.5 text-[10px] text-white animate-pop">{unread}</span>}
       </button>
       {open && (
