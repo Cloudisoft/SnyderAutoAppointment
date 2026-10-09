@@ -27,6 +27,7 @@ export interface CallListRow {
 }
 
 interface CallDetail extends CallListRow {
+  connected: boolean;
   summary: string | null;
   transcript: string | null;
   recording_url: string | null;
@@ -174,12 +175,10 @@ function CallDetails({ id }: { id: string }) {
         </Card>
       )}
       {c.summary && <Card title="Summary"><p className="text-sm">{c.summary}</p></Card>}
-      {c.recording_url ? (
-        <Card title="Recording" actions={<a className="text-sm font-medium text-primary hover:underline" href={c.recording_url} target="_blank" rel="noreferrer" download>Download</a>}>
-          <audio controls preload="metadata" src={c.recording_url} className="w-full" />
-        </Card>
+      {c.recording_url || (c.connected && c.status === 'ended') ? (
+        <Recording callId={c.id} />
       ) : (
-        c.status === 'ended' && <p className="text-sm text-muted">No recording for this call (it may not have connected).</p>
+        c.status === 'ended' && <p className="text-sm text-muted">No recording for this call (it did not connect).</p>
       )}
       <Card title="Transcript & activity">
         {c.events.length ? <CallEventStream events={c.events} /> : null}
@@ -201,5 +200,22 @@ function AppointmentBadge({ appt }: { appt: NonNullable<CallListRow['appointment
     >
       {appt.status === 'needs_review' ? 'Appointment to review' : 'Appointment booked'} · {DateTime.fromISO(appt.starts_at).toFormat('LLL d, h:mm a')}
     </Link>
+  );
+}
+
+/** Streams the recording through the server, which refreshes expiring storage links. */
+function Recording({ callId }: { callId: string }) {
+  const link = useQuery({ queryKey: ['recording-link', callId], queryFn: () => api.get<{ url: string }>(`/api/calls/${callId}/recording-link`), staleTime: 60 * 60_000 });
+  const [failed, setFailed] = useState(false);
+  if (link.isLoading) return <SkeletonRows rows={1} />;
+  if (!link.data) return null;
+  return (
+    <Card title="Recording" actions={!failed && <a className="text-sm font-medium text-primary hover:underline" href={`${link.data.url}&download=1`}>Download</a>}>
+      {failed ? (
+        <p className="text-sm text-muted">The recording isn’t available yet. It usually appears within a minute of the call ending; reopen the call to try again.</p>
+      ) : (
+        <audio controls preload="metadata" src={link.data.url} className="w-full" onError={() => setFailed(true)} />
+      )}
+    </Card>
   );
 }

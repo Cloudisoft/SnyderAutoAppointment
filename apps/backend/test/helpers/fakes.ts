@@ -101,7 +101,7 @@ export class FakeMailer implements Mailer {
     if (this.verifyError) throw this.verifyError;
   }
   async settingsFor() {
-    return { host: 'smtp.test', port: 587, secure: false, username: null, password: null, fromEmail: 'noreply@acme.test', fromName: null, replyTo: null };
+    return { transport: 'smtp' as const, host: 'smtp.test', port: 587, secure: false, username: null, password: null, fromEmail: 'noreply@acme.test', fromName: null, replyTo: null };
   }
   async send(email: OutgoingEmail) {
     const f = this.failuresFor[email.to]?.shift() ?? this.failures.shift();

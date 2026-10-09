@@ -2,27 +2,38 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { withTx } from '../../db/pool';
 import type { Deps } from '../../deps';
-import { loadOrgSmtpSettings, type SmtpSettings } from '../../integrations/mailer';
+import { API_TRANSPORTS } from '../../integrations/emailApi';
+import { envSmtpSettings, explainSmtpError, loadOrgSmtpSettings, type SmtpSettings } from '../../integrations/mailer';
+import { UpstreamError } from '../../lib/http';
 import { deleteSecret, storeSecret } from '../../integrations/vault';
 import { badRequest, notFound } from '../../lib/errors';
 import { authenticate, authOf, requirePermission } from '../../plugins/auth';
 import { kickOrganizationNotifications, requeueFailedNotifications } from '../appointments/notifications/dispatcher';
 
-const SmtpInput = z.object({
-  host: z.string().trim().min(1).max(253).regex(/^[A-Za-z0-9.-]+$/, 'Enter a host name such as smtp.example.com'),
-  port: z.number().int().min(1).max(65535),
-  secure: z.boolean(),
+const SmtpInput = z
+  .object({
+  transport: z.enum(['smtp', ...API_TRANSPORTS]).default('smtp'),
+  host: z.string().trim().max(253).regex(/^[A-Za-z0-9.-]*$/, 'Enter a host name such as smtp.example.com').optional().default(''),
+  port: z.number().int().min(1).max(65535).optional(),
+  secure: z.boolean().default(false),
   username: z.string().trim().max(320).nullable().optional(),
   /** Omit to keep the saved password; empty string clears it. */
   password: z.string().max(1000).optional(),
   from_email: z.string().trim().email(),
   from_name: z.string().trim().max(120).nullable().optional(),
   reply_to: z.string().trim().email().nullable().optional().or(z.literal('')),
-});
+  })
+  .superRefine((b, ctx) => {
+    if (b.transport === 'smtp') {
+      if (!b.host) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['host'], message: 'Enter the SMTP host' });
+      if (!b.port) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['port'], message: 'Enter the SMTP port' });
+    }
+  });
 
 type SmtpRow = {
-  host: string;
-  port: number;
+  transport: string;
+  host: string | null;
+  port: number | null;
   secure: boolean;
   username: string | null;
   password_secret_id: string | null;
@@ -36,17 +47,18 @@ type SmtpRow = {
 };
 
 /** Never returns the password, only whether one is saved. */
-function publicView(r: SmtpRow | undefined, platformFallback: boolean) {
-  if (!r) return { configured: false, platform_fallback: platformFallback };
+function publicView(r: SmtpRow | undefined, platformFallback: boolean, platformFrom: string | null) {
+  if (!r) return { configured: false, platform_fallback: platformFallback, platform_from: platformFrom };
   const { password_secret_id, ...rest } = r;
-  return { configured: true, platform_fallback: platformFallback, ...rest, has_password: !!password_secret_id };
+  return { configured: true, platform_fallback: platformFallback, platform_from: platformFrom, ...rest, has_password: !!password_secret_id };
 }
 
 /** Settings > Email (SMTP): each organization sends appointment emails through its own SMTP server. */
 export async function registerSmtpRoutes(app: FastifyInstance, deps: Deps) {
   const { db } = deps;
   const manage = [authenticate(deps), requirePermission('settings.manage')];
-  const platformFallback = !!(deps.config.SMTP_HOST && deps.config.SMTP_FROM_EMAIL);
+  const platformFallback = !!envSmtpSettings(deps.config);
+  const platformFrom = envSmtpSettings(deps.config)?.fromEmail ?? null;
 
   /** Emails that were waiting on (or failed because of) email setup go out now, in the background. */
   const releaseBacklog = async (organizationId: string) => {
@@ -58,7 +70,7 @@ export async function registerSmtpRoutes(app: FastifyInstance, deps: Deps) {
   app.get('/api/settings/smtp', { preHandler: manage }, async (req) => {
     const { organizationId } = authOf(req);
     const { rows } = await db.query<SmtpRow>('select * from organization_smtp_settings where organization_id = $1', [organizationId]);
-    return publicView(rows[0], platformFallback);
+    return publicView(rows[0], platformFallback, platformFrom);
   });
 
   app.put('/api/settings/smtp', { preHandler: manage }, async (req) => {
@@ -70,24 +82,27 @@ export async function registerSmtpRoutes(app: FastifyInstance, deps: Deps) {
         [organizationId],
       );
       let secretId = existing[0]?.password_secret_id ?? null;
+      if (b.transport !== 'smtp' && !secretId && !b.password) throw badRequest('Enter the API key');
       if (b.password !== undefined) {
         if (secretId) await deleteSecret(c, secretId);
         secretId = b.password ? await storeSecret(c, b.password, `smtp:${organizationId}:${Date.now()}`) : null;
       }
       const { rows } = await c.query<SmtpRow>(
-        `insert into organization_smtp_settings(organization_id, host, port, secure, username, password_secret_id, from_email, from_name, reply_to, updated_by)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-         on conflict (organization_id) do update set host = excluded.host, port = excluded.port, secure = excluded.secure,
+        `insert into organization_smtp_settings(organization_id, host, port, secure, username, password_secret_id, from_email, from_name, reply_to, updated_by, transport)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         on conflict (organization_id) do update set transport = excluded.transport, host = excluded.host, port = excluded.port, secure = excluded.secure,
            username = excluded.username, password_secret_id = excluded.password_secret_id, from_email = excluded.from_email,
            from_name = excluded.from_name, reply_to = excluded.reply_to, updated_by = excluded.updated_by,
            last_tested_at = null, last_test_ok = null, last_test_error = null
          returning *`,
-        [organizationId, b.host, b.port, b.secure, b.username || null, secretId, b.from_email, b.from_name || null, b.reply_to || null, userId],
+        b.transport === 'smtp'
+          ? [organizationId, b.host, b.port, b.secure, b.username || null, secretId, b.from_email, b.from_name || null, b.reply_to || null, userId, 'smtp']
+          : [organizationId, null, null, true, null, secretId, b.from_email, b.from_name || null, b.reply_to || null, userId, b.transport],
       );
       return rows[0];
     });
     const released = await releaseBacklog(organizationId);
-    return { ...publicView(row, platformFallback), released };
+    return { ...publicView(row, platformFallback, platformFrom), released };
   });
 
   app.delete('/api/settings/smtp', { preHandler: manage }, async (req) => {
@@ -118,8 +133,8 @@ export async function registerSmtpRoutes(app: FastifyInstance, deps: Deps) {
         organizationId,
         to: recipient,
         subject: `Test email from ${org[0]?.name ?? 'Snyder'}`,
-        text: `Your SMTP settings work. Appointment emails will be sent from ${settings.fromEmail}.`,
-        html: `<p>Your SMTP settings work.</p><p>Appointment emails will be sent from <strong>${settings.fromEmail.replace(/[<>&"]/g, '')}</strong>.</p>`,
+        text: `Your email settings work. Appointment emails will be sent from ${settings.fromEmail}.`,
+        html: `<p>Your email settings work.</p><p>Appointment emails will be sent from <strong>${settings.fromEmail.replace(/[<>&"]/g, '')}</strong>.</p>`,
       });
       await db.query(
         `update organization_smtp_settings set last_tested_at = now(), last_test_ok = true, last_test_error = null where organization_id = $1`,
@@ -128,12 +143,13 @@ export async function registerSmtpRoutes(app: FastifyInstance, deps: Deps) {
       const released = await releaseBacklog(organizationId);
       return { ok: true, to: recipient, messageId: res.messageId, released };
     } catch (err) {
-      const message = (err as Error).message?.slice(0, 1000) || String(err);
+      const raw = err instanceof UpstreamError ? err.userMessage : settings.transport === 'smtp' ? explainSmtpError(err) : (err as Error).message;
+      const message = (raw || String(err)).slice(0, 1000);
       await db.query(
         `update organization_smtp_settings set last_tested_at = now(), last_test_ok = false, last_test_error = $2 where organization_id = $1`,
         [organizationId, message],
       );
-      throw badRequest(`SMTP error: ${message}`, 'smtp_error');
+      throw badRequest(`${settings.transport === 'smtp' ? 'SMTP' : 'Email service'} error: ${message}`, 'smtp_error');
     }
   });
 }

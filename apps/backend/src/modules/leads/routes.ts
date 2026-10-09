@@ -5,6 +5,7 @@ import type { Deps } from '../../deps';
 import { parseCsvObjects } from '../../lib/csv';
 import { neutralize } from '../../lib/http';
 import { sendTableExport, type ExportColumn } from '../../lib/tableExport';
+import { signedRecordingUrl } from '../calls/recordings';
 import { badRequest, notFound } from '../../lib/errors';
 import { digitsOnly, toE164 } from '../../lib/phone';
 import { authenticate, authOf, requirePermission } from '../../plugins/auth';
@@ -204,7 +205,7 @@ export async function registerLeadRoutes(app: FastifyInstance, deps: Deps) {
         `select l.*, ll.name as list_name,
                 lc.created_at as last_call_at, lc.status as last_call_status, lc.duration_seconds as last_call_duration,
                 lc.ended_reason as last_call_ended_reason, coalesce(d.label, lc.disposition_key) as last_call_disposition,
-                lc.summary as last_call_summary, lc.recording_url as last_call_recording_url,
+                lc.summary as last_call_summary, lc.recording_url as last_call_recording_url, lc.id as last_call_id, lc.connected as last_call_connected,
                 (select count(*)::int from calls c2 where c2.lead_id = l.id) as call_count,
                 (select a.starts_at from appointments a where a.lead_id = l.id and a.status <> 'cancelled' order by a.created_at desc limit 1) as appointment_starts_at,
                 (select a.status from appointments a where a.lead_id = l.id and a.status <> 'cancelled' order by a.created_at desc limit 1) as appointment_status
@@ -253,7 +254,7 @@ export async function registerLeadRoutes(app: FastifyInstance, deps: Deps) {
       ['Last call ended reason', (r) => (typeof r.last_call_ended_reason === 'string' ? neutralize(r.last_call_ended_reason) : null)],
       ['Last disposition', (r) => r.last_call_disposition ?? r.last_disposition],
       ['Last call summary', (r) => r.last_call_summary],
-      ['Last call recording URL', (r) => r.last_call_recording_url],
+      ['Last call recording URL', (r) => (r.last_call_id && (r.last_call_recording_url || r.last_call_connected) ? signedRecordingUrl(deps.config, String(r.last_call_id), deps.clock.now(), 30 * 86_400_000) : null)],
       ['Appointment status', (r) => r.appointment_status],
       ['Appointment start (UTC)', (r) => r.appointment_starts_at],
       ['Created at', (r) => r.created_at],

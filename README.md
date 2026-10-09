@@ -56,6 +56,15 @@ in `.env.example` under "Auto Appointments".
 - Reschedules update the event/meeting; cancellations delete them. Temporary provider errors hold the email for a few retries; a missing/revoked connection sends the email without the link and notifies admins. A `meeting-sync` job retries failures.
 - Requires the platform OAuth apps: `GOOGLE_CLIENT_ID/SECRET`, `ZOOM_CLIENT_ID/SECRET` (see `.env.example`).
 
+## Email delivery
+
+- **Platform email (default):** set `PLATFORM_EMAIL_TRANSPORT`, `PLATFORM_EMAIL_API_KEY` and `PLATFORM_EMAIL_FROM` and every organization's appointment emails just work, with no setup: the business name is the sender name and replies go to the host.
+- **Own domain (optional):** Settings → Email lets an organization send through its own Resend, SendGrid, Postmark or Brevo account (HTTPS, works everywhere) or its own SMTP server. Railway blocks outbound SMTP on Free/Trial/Hobby plans; SMTP needs the Pro plan.
+
+## Recordings
+
+Recordings are streamed through the backend (`/api/recordings/:id`, short-lived signed links). The calling service may store them privately behind expiring URLs, so when a stored URL no longer works the server fetches a fresh one. Exports contain 30-day signed links.
+
 ## Bulk actions and exports
 
 - Leads: select rows (or "select all N matching") → move to list, remove from list, add to / remove from campaign, set status, delete. Leads on a live call are never deleted.

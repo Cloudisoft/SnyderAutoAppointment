@@ -56,21 +56,29 @@ export async function registerAnalyticsRoutes(app: FastifyInstance, deps: Deps) 
         group by 1, 2 order by n desc`,
       [organizationId, from.toISOString(), to.toISOString(), q.campaign_id ?? null],
     );
-    const calls = t.calls ?? 0;
-    const connected = t.connected ?? 0;
+    // The same-length period just before, for trend arrows.
+    const prevFrom = DateTime.fromJSDate(from).minus({ days: q.days }).toJSDate();
+    const previous = kpisOf(totals(await loadRollup(deps, organizationId, prevFrom, from, q.campaign_id)));
     return {
       range: { from: from.toISOString(), to: to.toISOString() },
-      kpis: {
-        calls,
-        connected,
-        connect_rate: calls ? connected / calls : 0,
-        avg_talk_seconds: connected ? Math.round((t.talk_seconds ?? 0) / connected) : 0,
-        ...extraKpis(t),
-      },
+      kpis: kpisOf(t),
+      previous,
       daily: [...byDay.entries()].map(([day, v]) => ({ day, ...v })),
       dispositions,
     };
   });
+}
+
+function kpisOf(t: Record<string, number>): Record<string, number> {
+  const calls = t.calls ?? 0;
+  const connected = t.connected ?? 0;
+  return {
+    calls,
+    connected,
+    connect_rate: calls ? connected / calls : 0,
+    avg_talk_seconds: connected ? Math.round((t.talk_seconds ?? 0) / connected) : 0,
+    ...extraKpis(t),
+  };
 }
 
 /** Feature KPIs derived from roll-up totals (extended by the appointments feature). */

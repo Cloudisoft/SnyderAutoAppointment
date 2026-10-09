@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { withTx } from '../../db/pool';
 import type { Deps } from '../../deps';
+import { envSmtpSettings } from '../../integrations/mailer';
 import { badRequest, notFound } from '../../lib/errors';
 import { authenticate, authenticateUser, authOf, requirePermission } from '../../plugins/auth';
 import { isValidTimeZone } from '../../lib/timezone';
@@ -147,7 +148,8 @@ export async function registerOrgRoutes(app: FastifyInstance, deps: Deps) {
          exists (select 1 from calls where organization_id = $1) as first_call`,
       [organizationId],
     );
-    return rows[0];
+    // Platform email covers organizations that haven't set up their own.
+    return { ...rows[0], email: rows[0]!.email || !!envSmtpSettings(deps.config) };
   });
 
   app.get('/api/organization/roles', { preHandler: [auth] }, async (req) => {
