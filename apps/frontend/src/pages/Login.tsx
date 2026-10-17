@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { Logo } from '../components/Brand';
 import { Button, ErrorText, Field, Input } from '../components/ui';
@@ -9,7 +9,8 @@ export function LoginPage() {
   const { session } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [params] = useSearchParams();
+  const [mode, setMode] = useState<'signin' | 'signup'>(params.get('mode') === 'signup' ? 'signup' : 'signin');
   const [error, setError] = useState<unknown>(() => linkError());
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -72,11 +73,14 @@ export function LoginPage() {
           </ul>
         </div>
         <img src="/brand/mark-dark.png" alt="" aria-hidden className="pointer-events-none absolute -bottom-10 -right-10 h-64 w-auto opacity-10 animate-float" />
-        <p className="text-sm text-white/50">By Snyder Staffing</p>
+        <div className="flex items-center justify-between text-sm text-white/50">
+          <span>By Snyder Staffing</span>
+          <Link to="/" className="transition-colors hover:text-white">← Back to home</Link>
+        </div>
       </section>
       <section className="grid place-items-center p-6">
         <form onSubmit={submit} className="w-full max-w-sm space-y-5 animate-page-in">
-          <Logo className="h-12 self-start lg:hidden" />
+          <Link to="/" className="block w-fit lg:hidden" aria-label="Back to home"><Logo className="h-12" /></Link>
           <div>
             <h2 className="text-2xl font-extrabold">{mode === 'signin' ? 'Welcome back' : 'Create your account'}</h2>
             <p className="mt-1 text-sm text-muted">{mode === 'signin' ? 'Sign in to your Snyder Automation workspace.' : 'Start booking appointments with AI calls.'}</p>

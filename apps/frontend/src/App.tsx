@@ -1,6 +1,6 @@
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { AppShell } from './components/AppShell';
 import { BrandSplash, Logo } from './components/Brand';
@@ -23,6 +23,7 @@ import { CampaignsPage } from './pages/Campaigns';
 import { LeadsPage } from './pages/Leads';
 import { AgentsSettings } from './pages/settings/Agents';
 import { LoginPage } from './pages/Login';
+import { LandingPage } from './pages/landing/LandingPage';
 import { PublicAppointmentPage } from './pages/public/AppointmentPage';
 import { OnboardingPage } from './pages/Onboarding';
 import { OrganizationSettings } from './pages/settings/OrganizationSettings';
@@ -54,8 +55,10 @@ const queryClient = new QueryClient({
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading, organizations, error, refresh, signOut } = useAuth();
+  const location = useLocation();
   if (loading) return <BrandSplash />;
-  if (!session) return <Navigate to="/login" replace />;
+  // Signed-out visitors to the home page see the landing page; deep links go to sign-in.
+  if (!session) return location.pathname === '/' ? <LandingPage /> : <Navigate to="/login" replace />;
   if (error) return <LoadError error={error} onRetry={() => void refresh()} onSignOut={() => void signOut()} />;
   if (organizations.length === 0) return <OnboardingPage />;
   return <>{children}</>;
@@ -104,6 +107,7 @@ export function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/welcome" element={<LandingPage />} />
             {/* Public, no login: the prospect's personal appointment link. */}
             <Route path="/a/:token" element={<PublicAppointmentPage />} />
             <Route element={<RequireAuth><AppShell /></RequireAuth>}>
