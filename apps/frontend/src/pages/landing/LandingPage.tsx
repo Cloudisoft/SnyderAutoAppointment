@@ -90,27 +90,43 @@ function SectionHead({ kicker, title, children, light }: { kicker: string; title
 
 function Nav() {
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const navItems = [
+    { label: 'Demo', href: '#demo' },
+    { label: 'How it works', href: '#how' },
+    { label: 'Features', href: '#features' },
+    { label: 'Videos', href: '#videos' },
+    { label: 'FAQ', href: '#faq' },
+  ];
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 12);
     on();
     window.addEventListener('scroll', on, { passive: true });
     return () => window.removeEventListener('scroll', on);
   }, []);
+  const closeMenu = () => setMenuOpen(false);
   return (
-    <header className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${scrolled ? 'border-b border-white/10 bg-[#090D0D]/80 backdrop-blur-xl' : 'bg-transparent'}`}>
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4">
-        <Link to="/" aria-label="Snyder Automation home"><Logo tone="onDark" className="h-8 sm:h-9" /></Link>
-        <nav className="ml-4 hidden gap-6 text-sm text-white/70 md:flex">
-          <a href="#demo" className="transition-colors hover:text-white">Demo</a>
-          <a href="#how" className="transition-colors hover:text-white">How it works</a>
-          <a href="#features" className="transition-colors hover:text-white">Features</a>
-          <a href="#videos" className="transition-colors hover:text-white">Videos</a>
-          <a href="#faq" className="transition-colors hover:text-white">FAQ</a>
+    <header className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${scrolled || menuOpen ? 'border-b border-white/10 bg-[#090D0D]/95 backdrop-blur-xl' : 'bg-transparent'}`}>
+      <div className="mx-auto flex min-h-16 max-w-6xl items-center gap-4 px-4">
+        <Link to="/" aria-label="Snyder Automation home" onClick={closeMenu}><Logo tone="onDark" className="h-8 sm:h-9" /></Link>
+        <nav aria-label="Main navigation" className="ml-4 hidden gap-6 text-sm text-white/70 md:flex">
+          {navItems.map((item) => <a key={item.href} href={item.href} className="transition-colors hover:text-white">{item.label}</a>)}
         </nav>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto hidden items-center gap-2 sm:flex">
           <Link to="/login" className="rounded-full px-4 py-2 text-sm font-medium text-white/80 transition-colors hover:text-white">Sign in</Link>
           <Link to={SIGNUP} className="lp-btn rounded-full px-4 py-2 text-sm">Start free</Link>
         </div>
+        <button type="button" className="ml-auto grid h-10 w-10 place-items-center rounded-xl border border-white/15 text-white sm:hidden" aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
+          <span className="text-xl leading-none">{menuOpen ? '×' : '☰'}</span>
+        </button>
+      </div>
+      <div className={`overflow-hidden transition-[max-height,opacity] duration-300 sm:hidden ${menuOpen ? 'max-h-96 opacity-100' : 'pointer-events-none max-h-0 opacity-0'}`}>
+        <nav aria-label="Mobile navigation" className="mx-auto flex max-w-6xl flex-col px-4 pb-4">
+          {navItems.map((item) => <a key={item.href} href={item.href} onClick={closeMenu} className="border-t border-white/10 py-3 text-sm text-white/80 transition-colors hover:text-[#FE5E01]">{item.label}</a>)}
+          <Link to="/login" onClick={closeMenu} className="border-t border-white/10 py-3 text-sm text-white/80">Sign in</Link>
+          <Link to={SIGNUP} onClick={closeMenu} className="lp-btn mt-2 rounded-full px-4 py-3 text-center text-sm">Start free</Link>
+          <a href="https://snyderstaffing.com" className="mt-3 text-center text-xs text-white/50 hover:text-white">Snyder Staffing home ↗</a>
+        </nav>
       </div>
     </header>
   );
@@ -495,14 +511,48 @@ function FinalCta() {
 
 function Footer() {
   return (
-    <footer className="border-t border-white/10 px-4 py-10 pb-28 md:pb-10">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-sm text-white/50 md:flex-row">
-        <Logo tone="onDark" className="h-8" />
-        <p>© {new Date().getFullYear()} Snyder Automation · AI calls that book real appointments.</p>
-        <div className="flex gap-5">
-          <Link to="/login" className="hover:text-white">Sign in</Link>
-          <a href="#features" className="hover:text-white">Features</a>
-          <a href="mailto:info@cloudisoft.com" className="hover:text-white">Contact</a>
+    <footer className="border-t border-white/10 px-4 pb-28 pt-12 text-sm text-white/60 md:pb-10">
+      <div className="mx-auto grid max-w-6xl gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
+        <div>
+          <a href="#top" aria-label="Back to top" className="inline-flex rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FE5E01]"><Logo tone="onDark" className="h-9" /></a>
+          <p className="mt-4 max-w-xs leading-6 text-white/50">AI-powered calls that turn lead follow-ups into booked appointments — automatically.</p>
+          <a href="https://snyderstaffing.com" target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex text-[#FE5E01] transition-colors hover:text-white">Part of Snyder Staffing ↗</a>
+        </div>
+        <div>
+          <h3 className="font-semibold text-white">Explore</h3>
+          <div className="mt-4 flex flex-col gap-3">
+            <a href="#demo" className="hover:text-white">Live demo</a>
+            <a href="#how" className="hover:text-white">How it works</a>
+            <a href="#features" className="hover:text-white">Features</a>
+            <a href="#videos" className="hover:text-white">Watch videos</a>
+            <a href="#faq" className="hover:text-white">FAQs</a>
+          </div>
+        </div>
+        <div>
+          <h3 className="font-semibold text-white">Your account</h3>
+          <div className="mt-4 flex flex-col gap-3">
+            <Link to={SIGNUP} className="hover:text-white">Start free</Link>
+            <Link to="/login" className="hover:text-white">Sign in</Link>
+            <a href="https://snyderstaffing.com/services" target="_blank" rel="noopener noreferrer" className="hover:text-white">Snyder services ↗</a>
+            <a href="https://www.linkedin.com/company/snyder-staffing/" target="_blank" rel="noopener noreferrer" className="hover:text-white">LinkedIn ↗</a>
+          </div>
+        </div>
+        <div>
+          <h3 className="font-semibold text-white">Contact Snyder Staffing</h3>
+          <div className="mt-4 flex flex-col gap-3">
+            <a href="mailto:contact@snyderstaffing.com" className="break-words hover:text-white">contact@snyderstaffing.com</a>
+            <a href="tel:+19419409896" className="hover:text-white">+1 (941) 940-9896</a>
+            <p className="leading-5 text-white/45">Monday–Friday<br />9:00 AM–6:00 PM Eastern</p>
+            <a href="https://snyderstaffing.com/contact" target="_blank" rel="noopener noreferrer" className="inline-flex text-[#FE5E01] hover:text-white">Contact page ↗</a>
+          </div>
+        </div>
+      </div>
+      <div className="mx-auto mt-10 flex max-w-6xl flex-col gap-3 border-t border-white/10 pt-5 text-xs text-white/40 sm:flex-row sm:items-center sm:justify-between">
+        <p>© {new Date().getFullYear()} Snyder Staffing · Snyder Auto Appointment.</p>
+        <div className="flex flex-wrap gap-4">
+          <a href="https://snyderstaffing.com/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-white">Privacy</a>
+          <a href="https://snyderstaffing.com/terms" target="_blank" rel="noopener noreferrer" className="hover:text-white">Terms</a>
+          <a href="#top" className="hover:text-white">Back to top ↑</a>
         </div>
       </div>
     </footer>
