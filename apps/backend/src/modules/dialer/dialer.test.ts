@@ -58,6 +58,13 @@ describeDb('dialer', () => {
     const { campaignId } = await createPublishedCampaign(db, org.orgId, { concurrency: 1 });
     const leadId = await createLead(db, org.orgId, { phone_e164: '+12125550401' });
     await db.query('insert into campaign_leads(organization_id, campaign_id, lead_id) values ($1, $2, $3)', [org.orgId, campaignId, leadId]);
+    // Make the lead unambiguously due; DB defaults use PostgreSQL's clock while
+    // the dialer uses the injected application clock, so a boundary race can
+    // otherwise leave next_attempt_at a few milliseconds in the future.
+    await db.query(
+      'update campaign_leads set next_attempt_at = now() - interval \'1 minute\' where campaign_id = $1 and lead_id = $2',
+      [campaignId, leadId],
+    );
     const vapi = new FakeVapi();
     vapi.failNext = new Error('network down');
     // Pause the other campaigns so only this one dials.
