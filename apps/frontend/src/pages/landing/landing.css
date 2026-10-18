@@ -241,7 +241,9 @@
   transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 500ms ease;
   animation: lp-phone-glow 5s ease-in-out infinite;
 }
-.lp-phone:nth-child(1) { animation-delay: 0ms; }
+.lp-phone-reel-1 { animation-delay: 0ms; }
+.lp-phone-reel-2 { animation-delay: 700ms; }
+.lp-phone-reel-3 { animation-delay: 1400ms; }
 @keyframes lp-phone-glow {
   0%, 100% { box-shadow: 0 30px 70px -25px rgb(9 13 13 / 0.55); }
   50% { box-shadow: 0 30px 76px -22px rgb(254 94 1 / 0.28); }
