@@ -16,16 +16,24 @@ const VIDEOS = [
 /** Reveals elements with the `lp-reveal` class as they scroll into view. */
 function useReveal() {
   useEffect(() => {
-    const els = Array.from(document.querySelectorAll<HTMLElement>('.lp-reveal'));
-    if (!('IntersectionObserver' in window)) {
-      els.forEach((el) => el.classList.add('lp-in'));
+    const els = Array.from(document.querySelectorAll<HTMLElement>('.lp .lp-reveal'));
+    const showAll = () => els.forEach((el) => el.classList.add('lp-in'));
+
+    // Avoid delaying content for visitors who prefer reduced motion or browsers
+    // that do not support IntersectionObserver.
+    if (
+      !('IntersectionObserver' in window) ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      showAll();
       return;
     }
+
     const io = new IntersectionObserver(
-      (entries) => entries.forEach((e) => {
-        if (e.isIntersecting) {
-          e.target.classList.add('lp-in');
-          io.unobserve(e.target);
+      (entries) => entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('lp-in');
+          io.unobserve(entry.target);
         }
       }),
       { threshold: 0.12, rootMargin: '0px 0px -40px 0px' },
@@ -202,8 +210,8 @@ function HeroScene() {
 function Marquee() {
   const items = ['Google Calendar', 'Google Meet', 'Zoom', 'Twilio numbers', 'Branded email', 'SMS reminders', 'CSV lead lists', 'MP3 recordings', 'Live transcripts', 'Role-based access'];
   return (
-    <div className="relative border-y border-white/10 bg-white/[0.02] py-5">
-      <div className="lp-marquee flex w-max gap-10 whitespace-nowrap text-sm font-medium text-white/50">
+    <div className="relative overflow-hidden border-y border-white/10 bg-white/[0.02] py-5" aria-label="Platform integrations and features">
+      <div className="lp-marquee flex w-max gap-10 whitespace-nowrap text-sm font-medium text-white/50" aria-hidden="true">
         {[...items, ...items].map((t, i) => (
           <span key={i} className="inline-flex items-center gap-3"><span className="h-1.5 w-1.5 rounded-full bg-[#FE5E01]" />{t}</span>
         ))}
