@@ -334,21 +334,25 @@ function Reel({ src, poster, title, caption, index }: { src: string; poster: str
             playsInline
             preload="none"
             controls={playing}
-            className="h-full w-full object-cover"
+            className={`h-full w-full object-cover transition-opacity duration-500 ease-in-out ${playing ? 'opacity-100' : 'opacity-95'}`}
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
             onEnded={() => setPlaying(false)}
           />
-          {!playing && (
-            <button onClick={toggle} className="group absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/70 via-transparent to-transparent pb-8" aria-label={`Play: ${title}`}>
-              <span className="lp-play-hint inline-flex items-center gap-2 rounded-full bg-[#FE5E01] py-2.5 pl-3 pr-5 font-semibold text-[#090D0D] transition-transform duration-200 group-hover:scale-105">
-                <span className="grid h-7 w-7 place-items-center rounded-full bg-[#090D0D] text-[#FE5E01]">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="translate-x-px"><path d="M7 5.5v13a1 1 0 001.5.86l11-6.5a1 1 0 000-1.72l-11-6.5A1 1 0 007 5.5z" /></svg>
-                </span>
-                Watch
+          <button
+            onClick={toggle}
+            aria-label={playing ? `Pause: ${title}` : `Play: ${title}`}
+            aria-hidden={playing}
+            tabIndex={playing ? -1 : 0}
+            className={`group absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/70 via-transparent to-transparent pb-8 transition-opacity duration-500 ease-in-out ${playing ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+          >
+            <span className="lp-play-hint inline-flex items-center gap-2 rounded-full bg-[#FE5E01] py-2.5 pl-3 pr-5 font-semibold text-[#090D0D] transition-transform duration-200 group-hover:scale-105">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-[#090D0D] text-[#FE5E01]">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="translate-x-px"><path d="M7 5.5v13a1 1 0 001.5.86l11-6.5a1 1 0 000-1.72l-11-6.5A1 1 0 007 5.5z" /></svg>
               </span>
-            </button>
-          )}
+              Watch
+            </span>
+          </button>
           <span aria-hidden className="absolute left-1/2 top-2 h-5 w-20 -translate-x-1/2 rounded-full bg-[#090D0D]" />
         </div>
       </div>
