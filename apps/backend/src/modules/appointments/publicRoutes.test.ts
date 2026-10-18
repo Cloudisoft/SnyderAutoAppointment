@@ -26,7 +26,10 @@ describeDb('public appointment page API', () => {
 
     const unknown = await app.inject({ method: 'GET', url: `/public/appointments/${generateToken()}` });
     const malformed = await app.inject({ method: 'GET', url: '/public/appointments/abc' });
-    await testPool().query(`update appointment_tokens set expires_at = now() - interval '1 minute' where appointment_id = $1`, [appointmentId]);
+    await testPool().query(
+      `update appointment_tokens set expires_at = $2::timestamptz - interval '1 minute' where appointment_id = $1`,
+      [appointmentId, testDeps().clock.now().toISOString()],
+    );
     const expired = await app.inject({ method: 'GET', url: `/public/appointments/${token}` });
     for (const r of [unknown, malformed, expired]) {
       expect(r.statusCode).toBe(404);

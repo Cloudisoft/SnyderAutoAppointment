@@ -52,11 +52,11 @@ export async function confirmAppointment(
   actor: { type: 'system' | 'user'; id?: string | null },
 ): Promise<AppointmentRow | null> {
   const { rows } = await client.query<AppointmentRow>(
-    `update appointments set status = 'confirmed', confirmed_at = now(), hold_expires_at = null,
+    `update appointments set status = 'confirmed', confirmed_at = $3, hold_expires_at = null,
             token_expires_at = ends_at + make_interval(days => $2)
       where id = $1 and status in ('pending', 'needs_review')
       returning *`,
-    [appointmentId, TOKEN_TTL_DAYS_AFTER_END],
+    [appointmentId, TOKEN_TTL_DAYS_AFTER_END, deps.clock.now().toISOString()],
   );
   const appt = rows[0];
   if (!appt) return null;
@@ -85,6 +85,7 @@ export async function confirmAppointment(
       channel,
       appointmentVersion: appt.version,
       recipient: channel === 'email' ? appt.attendee_email : null,
+      sendAfter: deps.clock.now(),
     });
   }
   const { rows: host } = await client.query<{ email: string }>('select email from appointment_hosts where id = $1', [appt.host_id]);
@@ -95,6 +96,7 @@ export async function confirmAppointment(
     channel: 'email',
     appointmentVersion: appt.version,
     recipient: host[0]?.email ?? null,
+    sendAfter: deps.clock.now(),
   });
   return appt;
 }

@@ -167,8 +167,12 @@ describeDb('Google Meet and Zoom meetings', () => {
     zoom.failTimes = 0;
     // The retry (job) succeeds and the email carries the link.
     const { dispatchNotificationsBatch } = await import('../appointments/notifications/dispatcher');
-    await testPool().query("update appointment_notifications set next_attempt_at = now() - interval '1 minute' where organization_id = $1", [org.orgId]);
-    await dispatchNotificationsBatch(deps(), { organizationId: org.orgId });
+    const retryDeps = deps();
+    await testPool().query(
+      "update appointment_notifications set next_attempt_at = $2::timestamptz - interval '1 minute' where organization_id = $1",
+      [org.orgId, retryDeps.clock.now().toISOString()],
+    );
+    await dispatchNotificationsBatch(retryDeps, { organizationId: org.orgId });
     const sent = mailer.sent.find((x) => x.to === 'ken@example.com');
     expect(sent?.text).toMatch(/Join Zoom meeting: https:\/\/zoom\.us\/j\/\d+/);
   });
