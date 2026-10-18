@@ -195,15 +195,26 @@
 @keyframes lp-pop { 0% { transform: scale(0.95); } 60% { transform: scale(1.02); } 100% { transform: scale(1); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .lp *, .lp *::before, .lp *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
-  .lp .lp-btn::after { animation: none !important; }
-  .lp-reveal { opacity: 1; transform: none; }
-  .lp-call, .lp-cal, .lp-toast, .lp-slot { animation: none !important; opacity: 1; transform: none; }
-
-  /* Keep the two requested ambient indicators alive even when the OS reduces motion.
-     Use slower, restrained motion instead of the normal animation speed. */
+  /* Respect reduced-motion preferences for large, continuous background movement,
+     but keep useful interaction feedback and content transitions perceptible. */
+  .lp-orb-a, .lp-orb-b, .lp-orb-c, .lp-orb-sm,
+  .lp-grid, .lp-cta-rings, .lp-cta-rings::before, .lp-cta-rings::after,
+  .lp-float, .lp-live, .lp-ring::after, .lp-ring-white::after,
+  .lp-dash, .lp-track {
+    animation: none !important;
+  }
   .lp .lp-marquee { animation-duration: 60s !important; animation-iteration-count: infinite !important; }
   .lp .lp-bar-on { animation-duration: 1400ms !important; animation-iteration-count: infinite !important; }
+  .lp-page-enter { animation-duration: 350ms !important; }
+  .lp-in-1, .lp-in-2, .lp-in-3, .lp-in-4, .lp-in-5 {
+    animation-duration: 350ms !important;
+  }
+  .lp-btn, .lp-btn::after, .lp-btn-dark, .lp-reveal, .lp-faq summary,
+  .lp-faq summary > span:last-child, .lp-console, .lp-phone, .lp-feature {
+    transition-duration: 180ms !important;
+  }
+  .lp-reveal { opacity: 1; transform: none; }
+  .lp-call, .lp-cal, .lp-toast, .lp-slot { animation: none !important; opacity: 1; transform: none; }
 }
 
 
