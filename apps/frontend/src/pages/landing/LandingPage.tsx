@@ -340,7 +340,7 @@ function Reel({ src, poster, title, caption, index }: { src: string; poster: str
   };
   return (
     <figure className="lp-reveal w-full max-w-[280px]" style={{ transitionDelay: `${index * 120}ms` }}>
-      <div className={`lp-phone relative rounded-[2.4rem] bg-[#090D0D] p-2.5 shadow-[0_30px_70px_-25px_rgb(9_13_13/0.55)] transition-transform duration-500 ${playing ? 'scale-[1.02]' : 'hover:-rotate-1'}`}>
+      <div className={`lp-phone lp-phone-reel-${index + 1} relative rounded-[2.4rem] bg-[#090D0D] p-2.5 shadow-[0_30px_70px_-25px_rgb(9_13_13/0.55)] transition-transform duration-500 ${playing ? 'scale-[1.02]' : 'hover:-rotate-1'}`}>
         <div className="relative aspect-[9/16] overflow-hidden rounded-[1.9rem] bg-[#131a2e]">
           <video
             ref={ref}
