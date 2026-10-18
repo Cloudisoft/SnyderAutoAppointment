@@ -209,12 +209,16 @@ function HeroScene() {
 
 function Marquee() {
   const items = ['Google Calendar', 'Google Meet', 'Zoom', 'Twilio numbers', 'Branded email', 'SMS reminders', 'CSV lead lists', 'MP3 recordings', 'Live transcripts', 'Role-based access'];
+  const renderItems = (prefix: string) => items.map((t, i) => (
+    <span key={`${prefix}-${i}`} className="inline-flex shrink-0 items-center gap-3">
+      <span className="h-1.5 w-1.5 rounded-full bg-[#FE5E01]" />{t}
+    </span>
+  ));
   return (
     <div className="relative overflow-hidden border-y border-white/10 bg-white/[0.02] py-5" aria-label="Platform integrations and features">
-      <div className="lp-marquee flex w-max gap-10 whitespace-nowrap text-sm font-medium text-white/50" aria-hidden="true">
-        {[...items, ...items].map((t, i) => (
-          <span key={i} className="inline-flex items-center gap-3"><span className="h-1.5 w-1.5 rounded-full bg-[#FE5E01]" />{t}</span>
-        ))}
+      <div className="lp-marquee flex w-max whitespace-nowrap text-sm font-medium text-white/50" aria-hidden="true">
+        <div className="lp-marquee-group flex shrink-0 items-center gap-10 pr-10">{renderItems('first')}</div>
+        <div className="lp-marquee-group flex shrink-0 items-center gap-10 pr-10">{renderItems('second')}</div>
       </div>
     </div>
   );

@@ -112,14 +112,23 @@
 .lp-ring-white::after { border-color: rgb(255 255 255 / 0.6); }
 @keyframes lp-ring { from { transform: scale(1); opacity: 1; } to { transform: scale(1.45); opacity: 0; } }
 
-/* Hero waveform bars (CSS-driven). */
-.lp-bar { transform-origin: center; transition: opacity 300ms ease; }
-.lp-bar-on { animation: lp-bar 900ms ease-in-out infinite alternate; }
-@keyframes lp-bar { 0% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } 100% { transform: scaleY(0.55); } }
+/* Always-on hero waveform: independently delayed bars create a living audio signal. */
+.lp-bar { transform-origin: center; transition: opacity 300ms ease; will-change: transform; }
+.lp-bar-on { animation: lp-bar 720ms ease-in-out infinite alternate; }
+@keyframes lp-bar {
+  0% { transform: scaleY(0.28); }
+  45% { transform: scaleY(1); }
+  100% { transform: scaleY(0.48); }
+}
 
-/* Integrations marquee. */
-.lp-marquee { animation: lp-marquee 32s linear infinite; }
-@keyframes lp-marquee { to { transform: translateX(-50%); } }
+/* Seamless, always-moving integration ticker. Two identical groups meet at the loop point. */
+.lp-marquee {
+  animation: lp-marquee 24s linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+.lp-marquee-group { min-width: max-content; }
+@keyframes lp-marquee { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-50%, 0, 0); } }
 
 /* How-it-works connector. */
 .lp-track { background: linear-gradient(90deg, transparent, #fe5e01, transparent); background-size: 200% 100%; animation: lp-track 3s linear infinite; opacity: 0.5; }
