@@ -119,7 +119,6 @@
 
 /* Integrations marquee. */
 .lp-marquee { animation: lp-marquee 32s linear infinite; }
-.lp-marquee:hover { animation-play-state: paused; }
 @keyframes lp-marquee { to { transform: translateX(-50%); } }
 
 /* How-it-works connector. */
