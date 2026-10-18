@@ -52,7 +52,7 @@ export function LandingPage() {
   }, []);
 
   return (
-    <div className="lp min-h-screen overflow-x-clip bg-[#090D0D] text-white">
+    <div className="lp lp-page-enter min-h-screen overflow-x-clip bg-[#090D0D] text-white">
       <Nav />
       <Hero />
       <Marquee />
