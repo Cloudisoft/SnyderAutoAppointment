@@ -16,16 +16,24 @@ const VIDEOS = [
 /** Reveals elements with the `lp-reveal` class as they scroll into view. */
 function useReveal() {
   useEffect(() => {
-    const els = Array.from(document.querySelectorAll<HTMLElement>('.lp-reveal'));
-    if (!('IntersectionObserver' in window)) {
-      els.forEach((el) => el.classList.add('lp-in'));
+    const els = Array.from(document.querySelectorAll<HTMLElement>('.lp .lp-reveal'));
+    const showAll = () => els.forEach((el) => el.classList.add('lp-in'));
+
+    // Avoid delaying content for visitors who prefer reduced motion or browsers
+    // that do not support IntersectionObserver.
+    if (
+      !('IntersectionObserver' in window) ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      showAll();
       return;
     }
+
     const io = new IntersectionObserver(
-      (entries) => entries.forEach((e) => {
-        if (e.isIntersecting) {
-          e.target.classList.add('lp-in');
-          io.unobserve(e.target);
+      (entries) => entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('lp-in');
+          io.unobserve(entry.target);
         }
       }),
       { threshold: 0.12, rootMargin: '0px 0px -40px 0px' },
