@@ -19,8 +19,8 @@ describeDb('Vapi booking tools', () => {
   async function dial(campaign: { campaignId: string; versionId: string }, vapi: FakeVapi, phone: string) {
     const db = testPool();
     const leadId = await createLead(db, org.orgId, { phone_e164: phone, email: 'john@gmail.com' });
-    await db.query('insert into campaign_leads(organization_id, campaign_id, lead_id) values ($1, $2, $3)', [org.orgId, campaign.campaignId, leadId]);
     const deps = testDeps({ vapi });
+    await db.query('insert into campaign_leads(organization_id, campaign_id, lead_id, next_attempt_at) values ($1, $2, $3, $4)', [org.orgId, campaign.campaignId, leadId, deps.clock.now().toISOString()]);
     const pipeline = defaultCallPipeline();
     const claimed = await claimForCampaign(deps, org.orgId, campaign.campaignId, campaign.versionId);
     for (const p of claimed) await placeCall(deps, pipeline, p);

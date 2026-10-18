@@ -252,12 +252,13 @@ export async function registerAppointmentRoutes(app: FastifyInstance, deps: Deps
     const type = appt.version > 1 ? 'reschedule' : 'confirmation';
     const inserted = await enqueueNotification(db, {
       organizationId, appointmentId: id, type, channel: 'email', appointmentVersion: appt.version, recipient: appt.attendee_email,
+      sendAfter: deps.clock.now(),
     });
     if (!inserted) {
       await db.query(
-        `update appointment_notifications set status = 'queued', attempts = 0, next_attempt_at = now(), last_error = null, recipient = $2
+        `update appointment_notifications set status = 'queued', attempts = 0, next_attempt_at = $5, last_error = null, recipient = $2
           where appointment_id = $1 and type = $3 and channel = 'email' and appointment_version = $4`,
-        [id, appt.attendee_email, type, appt.version],
+        [id, appt.attendee_email, type, appt.version, deps.clock.now().toISOString()],
       );
     }
     await kickNotifications(deps, id);

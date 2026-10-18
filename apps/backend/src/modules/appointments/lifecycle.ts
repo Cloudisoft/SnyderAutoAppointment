@@ -109,6 +109,7 @@ export async function rescheduleAppointment(
         channel,
         appointmentVersion: updated.version,
         recipient: channel === 'email' ? appt.attendee_email : null,
+        sendAfter: now,
       });
     }
     const { rows: host } = await client.query<{ email: string }>('select email from appointment_hosts where id = $1', [hostId]);
@@ -119,6 +120,7 @@ export async function rescheduleAppointment(
       channel: 'email',
       appointmentVersion: updated.version,
       recipient: host[0]?.email ?? null,
+      sendAfter: now,
     });
     return updated;
   });
@@ -135,10 +137,10 @@ export async function cancelAppointment(deps: Deps, appointmentId: string, reaso
     if (actor.type === 'prospect' && appt.starts_at.getTime() <= now.getTime()) throw conflict('This appointment has already started.', 'read_only');
     const wasConfirmed = MODIFIABLE.includes(appt.status);
     const { rows } = await client.query<AppointmentRow>(
-      `update appointments set status = 'cancelled', cancelled_at = now(), cancel_reason = $2, hold_expires_at = null,
+      `update appointments set status = 'cancelled', cancelled_at = $4, cancel_reason = $2, hold_expires_at = null,
               version = version + $3
         where id = $1 returning *`,
-      [appt.id, reason?.slice(0, 1000) || null, wasConfirmed ? 1 : 0],
+      [appt.id, reason?.slice(0, 1000) || null, wasConfirmed ? 1 : 0, now.toISOString()],
     );
     const updated = rows[0]!;
     await cancelPendingNotifications(client, appt.id, '%');
@@ -155,9 +157,9 @@ export async function cancelAppointment(deps: Deps, appointmentId: string, reaso
       await client.query(`update leads set status = 'appointment_cancelled' where id = $1 and status <> 'do_not_call'`, [appt.lead_id]);
       if (settings?.requeue_on_cancel && appt.campaign_id) {
         await client.query(
-          `update campaign_leads set state = 'queued', next_attempt_at = now()
+          `update campaign_leads set state = 'queued', next_attempt_at = $3
             where campaign_id = $1 and lead_id = $2 and state <> 'removed'`,
-          [appt.campaign_id, appt.lead_id],
+          [appt.campaign_id, appt.lead_id, now.toISOString()],
         );
       }
     }
@@ -170,6 +172,7 @@ export async function cancelAppointment(deps: Deps, appointmentId: string, reaso
           channel,
           appointmentVersion: updated.version,
           recipient: channel === 'email' ? appt.attendee_email : null,
+          sendAfter: now,
         });
       }
       if (actor.type === 'prospect') {
