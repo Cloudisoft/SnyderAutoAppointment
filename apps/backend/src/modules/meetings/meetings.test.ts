@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest';
 import { buildApp } from '../../app';
 import { closeTestPool, describeDb, seedOrg, testPool, type SeededOrg } from '../../../test/helpers/db';
@@ -71,6 +72,32 @@ describeDb('Google Meet and Zoom meetings', () => {
     };
     expect(await go('https://portal.acme.test')).toBe('https://portal.acme.test/settings/integrations?connected=google');
     expect(await go('https://evil.example')).toBe('https://app.example.test/settings/integrations?connected=google');
+  });
+
+  it('Zoom events: answers the URL check, rejects bad signatures, and forgets the connection when the app is removed', async () => {
+    const secret = 'zoom-secret-token';
+    const app = await buildApp(testDeps({ google, zoom, mailer, config: testConfig({ ZOOM_WEBHOOK_SECRET_TOKEN: secret }) }));
+    const sign = (body: string, ts = '1700000000') => ({
+      'content-type': 'application/json',
+      'x-zm-request-timestamp': ts,
+      'x-zm-signature': `v0=${createHmac('sha256', secret).update(`v0:${ts}:${body}`).digest('hex')}`,
+    });
+
+    const check = await app.inject({ method: 'POST', url: '/webhooks/zoom', headers: { 'content-type': 'application/json' }, payload: JSON.stringify({ event: 'endpoint.url_validation', payload: { plainToken: 'abc' } }) });
+    expect(check.json()).toEqual({ plainToken: 'abc', encryptedToken: createHmac('sha256', secret).update('abc').digest('hex') });
+
+    await saveConnection(deps(), { organizationId: org.orgId, provider: 'zoom', userId: org.ownerId, tokens: { accessToken: 'a', refreshToken: 'r', expiresIn: 3600 }, account: { email: 'host@acme.test', id: 'zoom-user-1' } });
+    const other = await seedOrg(testPool());
+    await saveConnection(deps(), { organizationId: other.orgId, provider: 'zoom', userId: other.ownerId, tokens: { accessToken: 'a2', refreshToken: 'r2', expiresIn: 3600 }, account: { email: 'other@acme.test', id: 'zoom-user-2' } });
+
+    const body = JSON.stringify({ event: 'app_deauthorized', payload: { user_id: 'zoom-user-1', account_id: 'acc' } });
+    const forged = await app.inject({ method: 'POST', url: '/webhooks/zoom', headers: { ...sign(body), 'x-zm-signature': 'v0=nope' }, payload: body });
+    expect(forged.statusCode).toBe(401);
+    const ok = await app.inject({ method: 'POST', url: '/webhooks/zoom', headers: sign(body), payload: body });
+    expect(ok.statusCode).toBe(200);
+
+    const left = await testPool().query('select organization_id from organization_integrations where provider = $1 and organization_id = any($2)', ['zoom', [org.orgId, other.orgId]]);
+    expect(left.rows.map((r) => r.organization_id)).toEqual([other.orgId]);
   });
 
   it('rejects a callback for a user without permission and expired states', async () => {

@@ -24,6 +24,10 @@ import { LeadsPage } from './pages/Leads';
 import { AgentsSettings } from './pages/settings/Agents';
 import { LoginPage } from './pages/Login';
 import { LandingPage } from './pages/landing/LandingPage';
+import { PrivacyPage } from './pages/legal/PrivacyPage';
+import { SupportPage } from './pages/legal/SupportPage';
+import { TermsPage } from './pages/legal/TermsPage';
+import { ZoomGuidePage } from './pages/legal/ZoomGuidePage';
 import { PublicAppointmentPage } from './pages/public/AppointmentPage';
 import { OnboardingPage } from './pages/Onboarding';
 import { OrganizationSettings } from './pages/settings/OrganizationSettings';
@@ -108,6 +112,10 @@ export function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/welcome" element={<LandingPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/support" element={<SupportPage />} />
+            <Route path="/docs/zoom" element={<ZoomGuidePage />} />
             {/* Public, no login: the prospect's personal appointment link. */}
             <Route path="/a/:token" element={<PublicAppointmentPage />} />
             <Route element={<RequireAuth><AppShell /></RequireAuth>}>

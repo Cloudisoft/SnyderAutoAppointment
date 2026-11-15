@@ -540,7 +540,7 @@ function Footer() {
         <div>
           <h3 className="font-semibold text-white">Contact Snyder Staffing</h3>
           <div className="mt-4 flex flex-col gap-3">
-            <a href="mailto:contact@snyderstaffing.com" className="break-words hover:text-white">contact@snyderstaffing.com</a>
+            <a href="mailto:info@snyderstaffing.com" className="break-words hover:text-white">info@snyderstaffing.com</a>
             <a href="tel:+19419409896" className="hover:text-white">+1 (941) 940-9896</a>
             <p className="leading-5 text-white/45">Monday–Friday<br />9:00 AM–6:00 PM Eastern</p>
             <a href="https://snyderstaffing.com/contact" target="_blank" rel="noopener noreferrer" className="inline-flex text-[#FE5E01] hover:text-white">Contact page ↗</a>
@@ -550,8 +550,10 @@ function Footer() {
       <div className="mx-auto mt-10 flex max-w-6xl flex-col gap-3 border-t border-white/10 pt-5 text-xs text-white/40 sm:flex-row sm:items-center sm:justify-between">
         <p>© {new Date().getFullYear()} Snyder Staffing · Snyder Auto Appointment.</p>
         <div className="flex flex-wrap gap-4">
-          <a href="https://snyderstaffing.com/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-white">Privacy</a>
-          <a href="https://snyderstaffing.com/terms" target="_blank" rel="noopener noreferrer" className="hover:text-white">Terms</a>
+          <Link to="/privacy" className="hover:text-white">Privacy</Link>
+          <Link to="/terms" className="hover:text-white">Terms</Link>
+          <Link to="/support" className="hover:text-white">Support</Link>
+          <Link to="/docs/zoom" className="hover:text-white">Zoom guide</Link>
           <a href="#top" className="hover:text-white">Back to top ↑</a>
         </div>
       </div>
