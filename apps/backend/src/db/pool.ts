@@ -35,4 +35,5 @@ export const PG = {
   uniqueViolation: '23505',
   exclusionViolation: '23P01',
   foreignKeyViolation: '23503',
+  deadlockDetected: '40P01',
 } as const;

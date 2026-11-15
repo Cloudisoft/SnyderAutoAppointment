@@ -134,6 +134,9 @@ export const bookAppointmentTool: ToolDefinition = {
       const booked = await withTx(deps.db, async (client) => {
         // Serialize booking attempts within this call (e.g. the AI retrying).
         await client.query('select id from calls where id = $1 for update', [call.id]);
+        // Serialize bookings for the same host: concurrent inserts racing on the no-double-booking
+        // constraint can deadlock; with this lock the loser sees the winner's row and gets alternatives.
+        await client.query(`select pg_advisory_xact_lock(hashtext('appointment-host:' || $1::text))`, [offer.hostId]);
         const existing = await client.query<{ id: string; host_id: string; starts_at: Date }>(
           `select id, host_id, starts_at from appointments where call_id = $1 and status = 'pending'`,
           [call.id],
@@ -188,7 +191,7 @@ export const bookAppointmentTool: ToolDefinition = {
       const what = video ? `A confirmation email with ${video} and a link to reschedule or cancel` : 'A confirmation email with a link to reschedule or cancel';
       return `Booked: ${offer.spokenLabel} with ${hostName}. Tell them: "You're all set for ${offer.spokenLabel}. ${what} is on its way${emailPart}." Then thank them, say goodbye and end the call.`;
     } catch (err) {
-      if (!isPgError(err, PG.exclusionViolation)) throw err;
+      if (!isPgError(err, PG.exclusionViolation) && !isPgError(err, PG.deadlockDetected)) throw err;
       // Someone else took the slot a moment ago: offer fresh alternatives instead of failing.
       let fresh;
       try {
