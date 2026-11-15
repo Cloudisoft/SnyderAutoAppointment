@@ -550,8 +550,10 @@ function Footer() {
       <div className="mx-auto mt-10 flex max-w-6xl flex-col gap-3 border-t border-white/10 pt-5 text-xs text-white/40 sm:flex-row sm:items-center sm:justify-between">
         <p>© {new Date().getFullYear()} Snyder Staffing · Snyder Auto Appointment.</p>
         <div className="flex flex-wrap gap-4">
-          <a href="https://snyderstaffing.com/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-white">Privacy</a>
-          <a href="https://snyderstaffing.com/terms" target="_blank" rel="noopener noreferrer" className="hover:text-white">Terms</a>
+          <Link to="/privacy" className="hover:text-white">Privacy</Link>
+          <Link to="/terms" className="hover:text-white">Terms</Link>
+          <Link to="/support" className="hover:text-white">Support</Link>
+          <Link to="/docs/zoom" className="hover:text-white">Zoom guide</Link>
           <a href="#top" className="hover:text-white">Back to top ↑</a>
         </div>
       </div>

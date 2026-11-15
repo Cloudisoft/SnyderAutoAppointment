@@ -69,6 +69,8 @@ const EnvSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().default(''),
   ZOOM_CLIENT_ID: z.string().default(''),
   ZOOM_CLIENT_SECRET: z.string().default(''),
+  /** Zoom app → Features → Access → Secret Token; verifies Zoom event notifications (app deauthorized). */
+  ZOOM_WEBHOOK_SECRET_TOKEN: z.string().default(''),
   MEETING_SYNC_INTERVAL_MS: intMs(60_000),
 });
 

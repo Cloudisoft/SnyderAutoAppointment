@@ -12,7 +12,7 @@ export interface OAuthProviderClient {
   authorizeUrl(redirectUri: string, state: string): string;
   exchangeCode(code: string, redirectUri: string): Promise<OAuthTokens>;
   refresh(refreshToken: string): Promise<OAuthTokens>;
-  account(accessToken: string): Promise<{ email: string; name?: string }>;
+  account(accessToken: string): Promise<{ email: string; name?: string; id?: string }>;
   revoke(token: string): Promise<void>;
 }
 

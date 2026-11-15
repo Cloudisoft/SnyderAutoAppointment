@@ -66,7 +66,7 @@ export async function getConnection(db: DbClient, organizationId: string, provid
 
 export async function saveConnection(
   deps: Deps,
-  c: { organizationId: string; provider: Provider; userId: string; tokens: OAuthTokens; account: { email: string; name?: string } },
+  c: { organizationId: string; provider: Provider; userId: string; tokens: OAuthTokens; account: { email: string; name?: string; id?: string } },
 ): Promise<void> {
   if (!c.tokens.refreshToken) throw new MeetingSetupError('The account did not grant offline access. Please try connecting again.');
   await withTx(deps.db, async (tx) => {
@@ -76,12 +76,13 @@ export async function saveConnection(
     );
     const secretId = await storeSecret(tx, c.tokens.refreshToken!, `${c.provider}-refresh-${c.organizationId}-${Date.now()}`);
     await tx.query(
-      `insert into organization_integrations(organization_id, provider, account_email, account_name, refresh_token_secret_id, scopes, status, last_error, connected_by, connected_at)
-       values ($1, $2, $3, $4, $5, $6, 'connected', null, $7, now())
+      `insert into organization_integrations(organization_id, provider, account_email, account_name, refresh_token_secret_id, scopes, status, last_error, connected_by, connected_at, external_user_id)
+       values ($1, $2, $3, $4, $5, $6, 'connected', null, $7, now(), $8)
        on conflict (organization_id, provider) do update set account_email = excluded.account_email, account_name = excluded.account_name,
+         external_user_id = excluded.external_user_id,
          refresh_token_secret_id = excluded.refresh_token_secret_id, scopes = excluded.scopes, status = 'connected', last_error = null,
          connected_by = excluded.connected_by, connected_at = now()`,
-      [c.organizationId, c.provider, c.account.email, c.account.name ?? null, secretId, c.tokens.scope ?? null, c.userId],
+      [c.organizationId, c.provider, c.account.email, c.account.name ?? null, secretId, c.tokens.scope ?? null, c.userId, c.account.id ?? null],
     );
     if (old.rows[0]) await deleteSecret(tx, old.rows[0].refresh_token_secret_id);
   });
@@ -99,6 +100,22 @@ export async function removeConnection(deps: Deps, organizationId: string, provi
   });
   tokenCache.delete(cacheKey(organizationId, provider));
   return true;
+}
+
+/** The provider revoked our access for this user (e.g. the app was removed in Zoom): drop every matching connection and its token. */
+export async function forgetConnectionsForExternalUser(deps: Deps, provider: Provider, externalUserId: string): Promise<number> {
+  const { rows } = await deps.db.query<{ organization_id: string; refresh_token_secret_id: string }>(
+    'select organization_id, refresh_token_secret_id from organization_integrations where provider = $1 and external_user_id = $2',
+    [provider, externalUserId],
+  );
+  for (const row of rows) {
+    await withTx(deps.db, async (tx) => {
+      await tx.query('delete from organization_integrations where organization_id = $1 and provider = $2', [row.organization_id, provider]);
+      await deleteSecret(tx, row.refresh_token_secret_id);
+    });
+    tokenCache.delete(cacheKey(row.organization_id, provider));
+  }
+  return rows.length;
 }
 
 // --- Access tokens: cached in memory, refreshed under an advisory lock (Zoom rotates refresh tokens) ---

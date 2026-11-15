@@ -51,8 +51,8 @@ export function createZoomClient(clientId: string, clientSecret: string): ZoomCl
       return toTokens(await tokenCall({ grant_type: 'refresh_token', refresh_token: refreshToken }));
     },
     async account(accessToken) {
-      const r = await fetchJson<{ email: string; first_name?: string; last_name?: string }>('Zoom', `${API}/users/me`, { headers: auth(accessToken) });
-      return { email: r.email, name: [r.first_name, r.last_name].filter(Boolean).join(' ') || undefined };
+      const r = await fetchJson<{ id?: string; email: string; first_name?: string; last_name?: string }>('Zoom', `${API}/users/me`, { headers: auth(accessToken) });
+      return { email: r.email, name: [r.first_name, r.last_name].filter(Boolean).join(' ') || undefined, id: r.id };
     },
     async revoke(token) {
       await fetchJson('Zoom', 'https://zoom.us/oauth/revoke', {

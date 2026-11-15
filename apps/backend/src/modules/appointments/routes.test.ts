@@ -80,6 +80,8 @@ describeDb('appointments app API', () => {
   });
 
   it('dashboard reports appointments booked, show rate and booked per 100 connected', async () => {
+    // Appointments follow the test clock, but call rows get the database's now(): put them in the same window.
+    await testPool().query("update calls set created_at = '2026-10-12T15:00:00Z' where organization_id = $1", [org.orgId]);
     const later = await buildApp(testDeps({ mailer, clock: fixedClock('2026-10-25T00:00:00Z') }));
     const res = await later.inject({ method: 'GET', url: '/api/dashboard?days=30', headers: bearerFor(org.ownerId) });
     const k = res.json().kpis;
@@ -87,6 +89,9 @@ describeDb('appointments app API', () => {
     expect(k.show_rate).toBe(1);
     expect(k.booked_per_100_connected).toBeGreaterThan(0);
   });
+
+  // Exceptions that already ended are hidden, so keep this one in the future.
+  const inDays = (d: number, hourUtc: number) => { const t = new Date(Date.now() + d * 86_400_000); t.setUTCHours(hourUtc, 0, 0, 0); return t.toISOString(); };
 
   it('settings: types, hosts, weekly availability, exceptions, template preview and test email', async () => {
     const h = bearerFor(org.ownerId);
@@ -96,7 +101,7 @@ describeDb('appointments app API', () => {
     const hostId = host.json().id;
     const av = await app.inject({ method: 'PUT', url: `/api/appointment-hosts/${hostId}/availability`, headers: h, payload: { rules: [{ weekday: 1, start_time: '09:00', end_time: '12:00' }, { weekday: 1, start_time: '13:00', end_time: '17:00' }] } });
     expect(av.statusCode).toBe(200);
-    const ex = await app.inject({ method: 'POST', url: `/api/appointment-hosts/${hostId}/exceptions`, headers: h, payload: { starts_at: '2026-10-19T15:00:00Z', ends_at: '2026-10-19T23:00:00Z', type: 'blocked', reason: 'Offsite' } });
+    const ex = await app.inject({ method: 'POST', url: `/api/appointment-hosts/${hostId}/exceptions`, headers: h, payload: { starts_at: inDays(5, 15), ends_at: inDays(5, 23), type: 'blocked', reason: 'Offsite' } });
     expect(ex.statusCode).toBe(201);
     const hosts = (await app.inject({ method: 'GET', url: '/api/appointment-hosts', headers: h })).json();
     const sam = hosts.find((x: { id: string }) => x.id === hostId);
