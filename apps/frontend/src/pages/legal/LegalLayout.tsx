@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Logo } from '../../components/Brand';
 
 export const CONTACT = {
-  email: 'contact@snyderstaffing.com',
+  email: 'info@snyderstaffing.com',
   phone: '+1 (941) 940-9896',
   phoneHref: 'tel:+19419409896',
   hours: 'Monday–Friday, 9:00 AM–6:00 PM Eastern',

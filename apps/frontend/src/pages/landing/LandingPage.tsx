@@ -540,7 +540,7 @@ function Footer() {
         <div>
           <h3 className="font-semibold text-white">Contact Snyder Staffing</h3>
           <div className="mt-4 flex flex-col gap-3">
-            <a href="mailto:contact@snyderstaffing.com" className="break-words hover:text-white">contact@snyderstaffing.com</a>
+            <a href="mailto:info@snyderstaffing.com" className="break-words hover:text-white">info@snyderstaffing.com</a>
             <a href="tel:+19419409896" className="hover:text-white">+1 (941) 940-9896</a>
             <p className="leading-5 text-white/45">Monday–Friday<br />9:00 AM–6:00 PM Eastern</p>
             <a href="https://snyderstaffing.com/contact" target="_blank" rel="noopener noreferrer" className="inline-flex text-[#FE5E01] hover:text-white">Contact page ↗</a>
